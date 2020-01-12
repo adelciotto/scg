@@ -121,7 +121,6 @@ struct scg_screen {
 
     int is_running;
     int is_locked;
-    int space_pressed;
 
     SDL_Window *sdl_window;
     SDL_Renderer *sdl_renderer;
@@ -292,7 +291,6 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
         1.0 / (float64)screen->target_frames_per_sec;
     screen->last_frame_counter = scg_get_performance_counter();
     screen->is_locked = 0;
-    screen->space_pressed = 0;
     screen->sdl_window = sdl_window;
     screen->sdl_renderer = sdl_renderer;
     screen->sdl_texture = sdl_texture;
@@ -317,14 +315,6 @@ int scg_screen_is_running(scg_screen *screen) {
     case SDL_KEYDOWN:
         if (event.key.keysym.sym == SDLK_ESCAPE) {
             screen->is_running = 0;
-        }
-        if (event.key.keysym.sym == SDLK_SPACE) {
-            screen->space_pressed = 1;
-        }
-        break;
-    case SDL_KEYUP:
-        if (event.key.keysym.sym == SDLK_SPACE) {
-            screen->space_pressed = 0;
         }
         break;
     }

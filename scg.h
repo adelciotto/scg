@@ -1,3 +1,15 @@
+// Simple Computer Graphics (SCG) by Anthony Del Ciotto
+//
+// Copyright © 2020 Anthony Del Ciotto
+// This work is free. You can redistribute it and/or modify it under the
+// terms of the Do What The Fuck You Want To Public License, Version 2,
+// as published by Sam Hocevar. See the LICENSE file for more details.
+//
+// ABOUT:
+//
+// My WIP personal library for getting graphics on the screen quickly.
+// It also plays sounds and does some other stuff too...
+//
 // TODO:
 // custom config files
 // implement plasma demo
@@ -81,6 +93,7 @@ enum scg_return_status_code {
     SCG_RETURN_STATUS_SUCCESS,
     SCG_RETURN_STATUS_SDL_ERROR,
     SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED,
+	SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE,
     SCG_RETURN_STATUS_MAX_SOUNDS_REACHED
     // ...
 };
@@ -88,7 +101,7 @@ enum scg_return_status_code {
 struct scg_return_status {
     int is_error;
     enum scg_return_status_code code;
-    // maybe store some generic error related properties
+    // TODO: maybe store some generic error related properties?
 };
 
 struct scg_screen {
@@ -162,6 +175,8 @@ const char *scg_return_status_get_error(scg_return_status return_status) {
         return SDL_GetError();
     case SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED:
         return "AUDIO_F32 format not supported";
+	case SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE:
+		return "failed to allocate memory for sound buffer";
     case SCG_RETURN_STATUS_MAX_SOUNDS_REACHED:
         return "the maximum of 16 sounds has been reached";
     case SCG_RETURN_STATUS_SUCCESS:
@@ -467,9 +482,14 @@ scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
     sound_device->latency_sample_count = sound_device->freq / 15;
     sound_device->buffer_size =
         sound_device->latency_sample_count * bytes_per_sample;
+
     sound_device->buffer =
         (uint8 *)calloc(sound_device->latency_sample_count,
-                        bytes_per_sample); // TODO: malloc error check
+                        bytes_per_sample);
+	if (sound_device->buffer == NULL) {
+		return (scg_return_status){1, SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE};
+	}
+
     sound_device->num_sounds = 0;
 
     SDL_PauseAudioDevice(device_id, 0);
@@ -573,6 +593,9 @@ void scg_sound_device_update(scg_sound_device *sound_device) {
 //
 
 void scg_sound_device_destroy(scg_sound_device *sound_device) {
+	SDL_PauseAudioDevice(sound_device->device_id, 1);
+	SDL_ClearQueuedAudio(sound_device->device_id);
+
     for (int i = 0; i < sound_device->num_sounds; i++) {
         SDL_FreeWAV(sound_device->sounds[i]->buffer);
     }

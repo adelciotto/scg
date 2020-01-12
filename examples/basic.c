@@ -1,3 +1,6 @@
+// Music in this demo is 'Arcade Music Loop.wav' by joshuaempyre.
+// Music link: https://freesound.org/people/joshuaempyre/sounds/251461/
+
 #include <stdio.h>
 #define SCG_IMPLEMENTATION
 #include "../scg.h"

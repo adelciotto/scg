@@ -1,4 +1,4 @@
-CFLAGS := -Wall -Wextra -Werror -std=c99 -pedantic -g
+CFLAGS := -Wall -Werror -Wextra -std=c99 -pedantic -g
 LDFLAGS := -lm $(shell pkg-config --libs sdl2)
 INCLUDES := $(shell pkg-config --cflags sdl2)
 

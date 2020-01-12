@@ -15,6 +15,9 @@ static void update_and_draw(scg_screen *screen) {
         }
     }
 
+    scg_screen_draw_string(screen, "Hello, World!", screen->width / 2,
+                           screen->height / 2, 1, 255, 255, 255);
+
     scg_screen_unlock(screen);
 }
 
@@ -55,21 +58,16 @@ int main(void) {
 
     scg_sound_play(&music);
 
-    uint64 last_frame_performance_counter = scg_get_performance_counter();
     while (scg_screen_is_running(&screen)) {
         scg_sound_device_update(&sound_device);
 
         update_and_draw(&screen);
-        scg_screen_present(&screen);
+        ssize_t bsize = snprintf(NULL, 0, "fps:%f", screen.frame_metrics.fps);
+        char buffer[bsize];
+        snprintf(buffer, bsize + 1, "fps:%f", screen.frame_metrics.fps);
+        scg_screen_draw_string(&screen, buffer, 10, 10, 0, 255, 255, 255);
 
-        if (scg_get_elapsed_time_secs(scg_get_performance_counter(),
-                                      last_frame_performance_counter) > 1.0) {
-            printf("fps:%f, s/f:%f, ms/f:%f\r", screen.frame_metrics.fps,
-                   screen.frame_metrics.time_per_frame_secs,
-                   screen.frame_metrics.time_per_frame_millisecs);
-            fflush(stdout);
-            last_frame_performance_counter = scg_get_performance_counter();
-        }
+        scg_screen_present(&screen);
     }
 
     scg_sound_device_destroy(&sound_device);

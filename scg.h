@@ -11,17 +11,31 @@
 // It also plays sounds and does some other stuff too...
 //
 // TODO:
-// custom config files
-// implement plasma demo
-// custom color type
-// draw text
-// basic drawing functions
-// keyboard input
-// mouse input
-// simple audio - maybe rethink api?
+// configuration:
+//  - define structure for application config
+//	- read from file
+//	- load screen config (width, height, fullscreen, etc...)
+//	- load sound config (volume, etc..)
+// color:
+//  - custom type for rgb
+// drawing:
+//	- basic primitives (lines, rectangle, circle, etc)
+//	- linear gradients
+// draw text:
+//  - multiline
+//  - different colored characters
+// input:
+//  - keyboard
+//  - mouse
+//  - gamepad
+// simple audio - maybe simplify api?
 //	- pause sound
 //	- pause device
-// gamepad input
+// general
+//  - custom data for error messages
+// examples:
+// - basic (sine wave scroll text)
+// - plasma
 
 #ifndef INCLUDE_SCG_H
 #define INCLUDE_SCG_H

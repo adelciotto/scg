@@ -10,22 +10,24 @@ static void update_and_draw(scg_screen *screen) {
 
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
-            scg_screen_set_pixel(screen, x, y, (uint8)scg_min(x, 255),
-                                 (uint8)scg_min(y, 255), 128);
+            scg_rgba color = {(uint8)scg_min(x, 255), (uint8)scg_min(y, 255),
+                              128, 255};
+            scg_screen_set_pixel(screen, x, y, color);
         }
     }
 
+    scg_rgba text_color = SCG_RGBA_WHITE;
     scg_screen_draw_string(screen, "Hello, World!", screen->width / 2,
-                           screen->height / 2, 1, 255, 255, 255);
+                           screen->height / 2, 1, text_color);
 
     scg_screen_unlock(screen);
 }
 
 int main(void) {
-    const int width = 256;
-    const int height = 256;
+    const int width = 320;
+    const int height = 240;
     const int scale = 2;
-    const int fullscreen = 0;
+    const int fullscreen = 1;
 
     scg_screen screen;
     scg_return_status return_status =
@@ -62,10 +64,7 @@ int main(void) {
         scg_sound_device_update(&sound_device);
 
         update_and_draw(&screen);
-        ssize_t bsize = snprintf(NULL, 0, "fps:%f", screen.frame_metrics.fps);
-        char buffer[bsize];
-        snprintf(buffer, bsize + 1, "fps:%f", screen.frame_metrics.fps);
-        scg_screen_draw_string(&screen, buffer, 10, 10, 0, 255, 255, 255);
+        scg_screen_draw_fps(&screen);
 
         scg_screen_present(&screen);
     }

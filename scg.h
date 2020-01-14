@@ -17,7 +17,7 @@
 //	- load screen config (width, height, fullscreen, etc...)
 //	- load sound config (volume, etc..)
 // color:
-//  - custom type for rgb
+//  - color conversions (hsv, hsl, etc)
 // drawing:
 //	- basic primitives (lines, rectangle, circle, etc)
 //	- linear gradients
@@ -68,6 +68,33 @@ extern uint64 scg_get_performance_frequency(void);
 extern float64 scg_get_elapsed_time_secs(uint64 end, uint64 start);
 extern float64 scg_get_elapsed_time_millisecs(uint64 end, uint64 start);
 
+typedef struct scg_rgba scg_rgba;
+
+#define SCG_RGBA_WHITE                                                         \
+    (scg_rgba) {                                                               \
+        255, 255, 255, 255                                                     \
+    }
+#define SCG_RGBA_BLACK                                                         \
+    (scg_rgba) {                                                               \
+        0, 0, 0, 255                                                           \
+    }
+#define SCG_RGBA_RED                                                           \
+    (scg_rgba) {                                                               \
+        255, 0, 0, 255                                                         \
+    }
+#define SCG_RGBA_GREEN                                                         \
+    (scg_rgba) {                                                               \
+        0, 255, 0, 255                                                         \
+    }
+#define SCG_RGBA_BLUE                                                          \
+    (scg_rgba) {                                                               \
+        0, 0, 255, 255                                                         \
+    }
+#define SCG_RGBA_YELLOW                                                        \
+    (scg_rgba) {                                                               \
+        255, 255, 0, 255                                                       \
+    }
+
 typedef struct scg_screen scg_screen;
 scg_return_status scg_screen_create(scg_screen *screen, const char *title,
                                     int width, int height, int scale,
@@ -75,14 +102,12 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
 extern int scg_screen_is_running(scg_screen *screen);
 extern void scg_screen_lock(scg_screen *screen);
 extern void scg_screen_unlock(scg_screen *screen);
-extern void scg_screen_set_pixel(scg_screen *screen, int x, int y, uint8 r,
-                                 uint8 g,
-                                 uint8 b); // TODO: create custom color type
-extern void scg_screen_clear(scg_screen *screen, uint8 r, uint8 g,
-                             uint8 b); // TODO: create custom color type
+extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
+                                 scg_rgba color);
+extern void scg_screen_clear(scg_screen *screen, scg_rgba color);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
-                                   int y, int center, uint8 r, uint8 g,
-                                   uint8 b);
+                                   int y, int center, scg_rgba color);
+extern void scg_screen_draw_fps(scg_screen *screen);
 extern void scg_screen_present(scg_screen *screen);
 extern void scg_screen_log_info(scg_screen *screen);
 extern void scg_screen_destroy(scg_screen *screen);
@@ -122,6 +147,13 @@ struct scg_return_status {
 };
 
 extern const char scg__font8x8[128][8];
+
+struct scg_rgba {
+    uint8 r;
+    uint8 g;
+    uint8 b;
+    uint8 a;
+};
 
 struct scg_screen {
     const char *title;
@@ -368,31 +400,32 @@ static int scg__pixelxy_to_index(int x, int y, int pitch) {
     return (y * pitch / 4) + x;
 }
 
+static uint32 scg__color_to_int(scg_rgba color) {
+    return (color.r << 24) + (color.g << 16) + (color.b << 8) + color.a;
+}
+
 //
 // scg_screen_set_pixel implementation
 // TODO: make custom color type
 
-void scg_screen_set_pixel(scg_screen *screen, int x, int y, uint8 r, uint8 g,
-                          uint8 b) {
+void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_rgba color) {
     if (x >= 0 && x < screen->width && y >= 0 && y < screen->height) {
-        uint32 color = (r << 24) + (g << 16) + (b << 8) + 255;
         uint32 *pixels = (uint32 *)screen->sdl_surface->pixels;
 
         int index = scg__pixelxy_to_index(x, y, screen->sdl_surface->pitch);
-        pixels[index] = color;
+        pixels[index] = scg__color_to_int(color);
     }
 }
 
 //
-// scg_screen_clear implementation
-// TODO: make custom color type
+//
 
-void scg_screen_clear(scg_screen *screen, uint8 r, uint8 g, uint8 b) {
+void scg_screen_clear(scg_screen *screen, scg_rgba color) {
     scg_screen_lock(screen);
 
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
-            scg_screen_set_pixel(screen, x, y, r, g, b);
+            scg_screen_set_pixel(screen, x, y, color);
         }
     }
 
@@ -400,15 +433,13 @@ void scg_screen_clear(scg_screen *screen, uint8 r, uint8 g, uint8 b) {
 }
 
 static void scg_draw_char(scg_screen *screen, const char *char_bitmap,
-                          int screen_x, int screen_y, uint8 r, uint8 g,
-                          uint8 b) {
+                          int screen_x, int screen_y, scg_rgba color) {
     for (int y = 0; y < SCG_FONT_SIZE; y++) {
         for (int x = 0; x < SCG_FONT_SIZE; x++) {
             int set = char_bitmap[y] & 1 << x;
 
             if (set) {
-                scg_screen_set_pixel(screen, screen_x + x, screen_y + y, r, g,
-                                     b);
+                scg_screen_set_pixel(screen, screen_x + x, screen_y + y, color);
             }
         }
     }
@@ -419,7 +450,7 @@ static void scg_draw_char(scg_screen *screen, const char *char_bitmap,
 //
 
 void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
-                            int center, uint8 r, uint8 g, uint8 b) {
+                            int center, scg_rgba color) {
     int current_x = x;
 
     if (center) {
@@ -433,9 +464,31 @@ void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
         if (char_code < 0 || char_code > 127) {
             char_code = 63; // draw '?' for unknown char
         }
-        scg_draw_char(screen, scg__font8x8[char_code], current_x, y, r, g, b);
+        scg_draw_char(screen, scg__font8x8[char_code], current_x, y, color);
         current_x += SCG_FONT_SIZE;
     }
+}
+
+//
+// scg_screen_draw_fps
+//
+
+void scg_screen_draw_fps(scg_screen *screen) {
+    float32 fps = screen->frame_metrics.fps;
+    ssize_t bsize = snprintf(NULL, 0, "fps:%f", fps);
+    char buffer[bsize];
+    snprintf(buffer, bsize + 1, "fps:%f", fps);
+
+    scg_rgba text_color = SCG_RGBA_GREEN;
+    float32 target_fps = (float32)screen->target_frames_per_sec;
+    if (fps < target_fps * 0.95) {
+        text_color = SCG_RGBA_YELLOW;
+    }
+    if (fps < target_fps * 0.5) {
+        text_color = SCG_RGBA_RED;
+    }
+
+    scg_screen_draw_string(screen, buffer, 10, 10, 0, text_color);
 }
 
 //

@@ -48,6 +48,14 @@ Replace `{{example_name}}` with any of the following:
 | [Source](/examples/basic.c) |
 | Opens a screen, plots some pixels and plays some music. |
 
+## Converting audio
+
+Ensure `ffmpeg` is installed. Then run:
+
+```sh
+ffmpeg -i assets/{example_sound}.wav -acodec pcm_s16le -ac 2 -ar 48000 assets/{example_sound_output}.wav
+```
+
 ## Attributions / References
 
 - Music in the basic example is by [joshuaempyre](https://freesound.org/people/joshuaempyre/).

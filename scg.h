@@ -100,8 +100,6 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
                                     int width, int height, int scale,
                                     int fullscreen);
 extern int scg_screen_is_running(scg_screen *screen);
-extern void scg_screen_lock(scg_screen *screen);
-extern void scg_screen_unlock(scg_screen *screen);
 extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
                                  scg_rgba color);
 extern void scg_screen_clear(scg_screen *screen, scg_rgba color);
@@ -286,6 +284,18 @@ static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
     return result;
 }
 
+scg_return_status scg__screen_lock(scg_screen *screen) {
+    if (SDL_MUSTLOCK(screen->sdl_surface)) {
+        if (SDL_LockSurface(screen->sdl_surface) < 0) {
+            return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
+        }
+
+        screen->is_locked = 1;
+    }
+
+    return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS};
+}
+
 //
 // scg_screen_create implementation
 //
@@ -342,12 +352,13 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     screen->target_time_per_frame_secs =
         1.0 / (float64)screen->target_frames_per_sec;
     screen->last_frame_counter = scg_get_performance_counter();
-    screen->is_locked = 0;
     screen->sdl_window = sdl_window;
     screen->sdl_renderer = sdl_renderer;
     screen->sdl_texture = sdl_texture;
     screen->sdl_surface = sdl_surface;
     screen->is_running = 1;
+
+    scg__screen_lock(screen);
 
     return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS};
 }
@@ -372,28 +383,6 @@ int scg_screen_is_running(scg_screen *screen) {
     }
 
     return screen->is_running;
-}
-
-//
-// scg_screen_lock implementation
-//
-
-void scg_screen_lock(scg_screen *screen) {
-    if (SDL_MUSTLOCK(screen->sdl_surface)) {
-        SDL_LockSurface(screen->sdl_surface);
-        screen->is_locked = 1;
-    }
-}
-
-//
-// scg_screen_unlock implementation
-//
-
-void scg_screen_unlock(scg_screen *screen) {
-    if (screen->is_locked) {
-        SDL_UnlockSurface(screen->sdl_surface);
-        screen->is_locked = 0;
-    }
 }
 
 static int scg__pixelxy_to_index(int x, int y, int pitch) {
@@ -421,15 +410,11 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_rgba color) {
 //
 
 void scg_screen_clear(scg_screen *screen, scg_rgba color) {
-    scg_screen_lock(screen);
-
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
             scg_screen_set_pixel(screen, x, y, color);
         }
     }
-
-    scg_screen_unlock(screen);
 }
 
 static void scg_draw_char(scg_screen *screen, const char *char_bitmap,

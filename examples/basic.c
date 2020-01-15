@@ -6,8 +6,6 @@
 #include "../scg.h"
 
 static void update_and_draw(scg_screen *screen) {
-    scg_screen_lock(screen);
-
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
             scg_rgba color = {(uint8)scg_min(x, 255), (uint8)scg_min(y, 255),
@@ -19,8 +17,6 @@ static void update_and_draw(scg_screen *screen) {
     scg_rgba text_color = SCG_RGBA_WHITE;
     scg_screen_draw_string(screen, "Hello, World!", screen->width / 2,
                            screen->height / 2, 1, text_color);
-
-    scg_screen_unlock(screen);
 }
 
 int main(void) {

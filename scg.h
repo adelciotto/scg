@@ -20,6 +20,8 @@
 //  - color conversions (hsv, hsl, etc)
 // drawing:
 //	- basic primitives (lines, rectangle, circle, etc)
+//	- load and draw images
+//	- draw primitives/images with transforms (scale, rotate, etc)
 //	- linear gradients
 // draw text:
 //  - multiline
@@ -29,7 +31,6 @@
 //  - mouse
 //  - gamepad
 // simple audio - maybe simplify api?
-//	- pause sound
 //	- pause device
 // general
 //  - custom data for error messages
@@ -235,7 +236,7 @@ const char *scg_return_status_get_error(scg_return_status return_status) {
 }
 
 //
-// scg_min
+// scg_min implementation
 //
 
 int scg_min(int val, int min) {
@@ -243,7 +244,7 @@ int scg_min(int val, int min) {
 }
 
 //
-// scg_get_performance_counter
+// scg_get_performance_counter implementation
 //
 
 Uint64 scg_get_performance_counter(void) {
@@ -251,7 +252,7 @@ Uint64 scg_get_performance_counter(void) {
 }
 
 //
-// scg_get_performance_frequency
+// scg_get_performance_frequency implementation
 //
 
 Uint64 scg_get_performance_frequency(void) {
@@ -259,7 +260,7 @@ Uint64 scg_get_performance_frequency(void) {
 }
 
 //
-// scg_get_elapsed_time_secs
+// scg_get_elapsed_time_secs implementation
 //
 
 float64 scg_get_elapsed_time_secs(uint64 end, uint64 start) {
@@ -267,7 +268,7 @@ float64 scg_get_elapsed_time_secs(uint64 end, uint64 start) {
 }
 
 //
-// scg_get_elapsed_time_millisecs
+// scg_get_elapsed_time_millisecs implementation
 //
 
 float64 scg_get_elapsed_time_millisecs(uint64 end, uint64 start) {
@@ -395,7 +396,7 @@ static uint32 scg__color_to_int(scg_rgba color) {
 
 //
 // scg_screen_set_pixel implementation
-// TODO: make custom color type
+//
 
 void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_rgba color) {
     if (x >= 0 && x < screen->width && y >= 0 && y < screen->height) {
@@ -407,6 +408,7 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_rgba color) {
 }
 
 //
+// scg_screen_clear implementation
 //
 
 void scg_screen_clear(scg_screen *screen, scg_rgba color) {
@@ -431,7 +433,7 @@ static void scg_draw_char(scg_screen *screen, const char *char_bitmap,
 }
 
 //
-// scg_screen_draw_string
+// scg_screen_draw_string implementation
 //
 
 void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
@@ -455,7 +457,7 @@ void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
 }
 
 //
-// scg_screen_draw_fps
+// scg_screen_draw_fps implementation
 //
 
 void scg_screen_draw_fps(scg_screen *screen) {
@@ -533,7 +535,7 @@ void scg_screen_destroy(scg_screen *screen) {
 }
 
 //
-// scg_sound_device_create
+// scg_sound_device_create implementation
 //
 
 scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
@@ -597,7 +599,7 @@ void scg_sound_device_log_info(scg_sound_device *sound_device) {
 }
 
 //
-// scg_sound_create
+// scg_sound_create implementation
 //
 
 scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
@@ -629,7 +631,7 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
 }
 
 //
-// scg_sound_play
+// scg_sound_play implementation
 //
 
 void scg_sound_play(scg_sound *sound) {
@@ -639,7 +641,7 @@ void scg_sound_play(scg_sound *sound) {
 }
 
 //
-// scg_sound_device_update
+// scg_sound_device_update implementation
 //
 
 void scg_sound_device_update(scg_sound_device *sound_device) {
@@ -676,7 +678,7 @@ void scg_sound_device_update(scg_sound_device *sound_device) {
 }
 
 //
-// scg_sound_device_destroy_sounds
+// scg_sound_device_destroy_sounds implementation
 //
 
 void scg_sound_device_destroy(scg_sound_device *sound_device) {

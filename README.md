@@ -39,14 +39,26 @@ make {{example_name}}
 Replace `{{example_name}}` with any of the following:
 
 * `basic`
+* `plasma`
+
+By default all the examples are built with optimization flags. To build in debug mode, use the `DEBUG=1` flag.
+
+```sh
+make DEBUG=1
+```
+
+Or for building a specific example:
+
+```sh
+make {{example_name}} DEBUG=1
+```
 
 ## Examples
 
-| Basic         |
-| ------------- |
-| ![basic](/previews/basic.png) |
-| [Source](/examples/basic.c) |
-| Opens a screen, plots some pixels and plays some music. |
+| Basic                          | Plasma                         |
+| ------------------------------ | ------------------------------ |
+| ![basic](/previews/basic.png)  | ![plasma](/previews/plasma.png)|
+| [Source](/examples/basic.c)    | [Source](/examples/plasma.c)   |
 
 ## Converting audio
 
@@ -59,4 +71,4 @@ ffmpeg -i assets/{example_sound}.wav -acodec pcm_s16le -ac 2 -ar 48000 assets/{e
 ## Attributions / References
 
 - Music in the basic example is by [joshuaempyre](https://freesound.org/people/joshuaempyre/).
-- This library wraps [SDL2](https://www.libsdl.org/)
+- This library wraps [SDL2](https://www.libsdl.org/).

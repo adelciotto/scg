@@ -35,7 +35,6 @@
 //  - custom data for error messages
 // examples:
 // - basic (sine wave scroll text)
-// - plasma
 
 #ifndef INCLUDE_SCG_H
 #define INCLUDE_SCG_H

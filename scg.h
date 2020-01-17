@@ -104,7 +104,7 @@ extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
                                  scg_rgba color);
 extern void scg_screen_clear(scg_screen *screen, scg_rgba color);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
-                                   int y, int center, scg_rgba color);
+                                   int y, int anchor_to_center, scg_rgba color);
 extern void scg_screen_draw_fps(scg_screen *screen);
 extern void scg_screen_present(scg_screen *screen);
 extern void scg_screen_log_info(scg_screen *screen);
@@ -441,8 +441,8 @@ void scg_screen_clear(scg_screen *screen, scg_rgba color) {
     }
 }
 
-static void scg_draw_char(scg_screen *screen, const char *char_bitmap,
-                          int screen_x, int screen_y, scg_rgba color) {
+static void scg__draw_char(scg_screen *screen, const char *char_bitmap,
+                           int screen_x, int screen_y, scg_rgba color) {
     for (int y = 0; y < SCG_FONT_SIZE; y++) {
         for (int x = 0; x < SCG_FONT_SIZE; x++) {
             int set = char_bitmap[y] & 1 << x;
@@ -454,18 +454,24 @@ static void scg_draw_char(scg_screen *screen, const char *char_bitmap,
     }
 }
 
+static int scg__string_width(const char *str, int size) {
+    return strlen(str) * size;
+}
+
 //
 // scg_screen_draw_string implementation
 //
+// TODO: Multiline strings
 
 void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
-                            int center, scg_rgba color) {
+                            int anchor_to_center, scg_rgba color) {
     int current_x = x;
+    int current_y = y;
 
-    if (center) {
-        int width = strlen(str) * SCG_FONT_SIZE;
+    if (anchor_to_center) {
+        int width = scg__string_width(str, SCG_FONT_SIZE);
         current_x = x - width / 2;
-        y -= SCG_FONT_SIZE / 2;
+        current_y -= SCG_FONT_SIZE / 2;
     }
 
     for (int i = 0; str[i] != '\0'; i++) {
@@ -473,7 +479,9 @@ void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
         if (char_code < 0 || char_code > 127) {
             char_code = 63; // draw '?' for unknown char
         }
-        scg_draw_char(screen, scg__font8x8[char_code], current_x, y, color);
+        scg__draw_char(screen, scg__font8x8[char_code], current_x, current_y,
+                       color);
+
         current_x += SCG_FONT_SIZE;
     }
 }

@@ -7,31 +7,32 @@
 #define PLASMA_SCALE_HALF PLASMA_SCALE * 0.5
 
 static void update_and_draw(scg_screen *screen, float32 t) {
-	const int width = screen->width;
-	const int height = screen->height;
+    const int width = screen->width;
+    const int height = screen->height;
 
     for (int yi = 0; yi < height; yi++) {
         float32 y = (0.5f + yi / (float32)height - 1.0f) * PLASMA_SCALE -
-                   PLASMA_SCALE_HALF;
+                    PLASMA_SCALE_HALF;
 
         for (int xi = 0; xi < width; xi++) {
             float32 x = (0.5f + xi / (float32)width - 1.0f) * PLASMA_SCALE -
-                       PLASMA_SCALE_HALF;
+                        PLASMA_SCALE_HALF;
 
-			float32 val = sinf(y + t);
+            float32 val = sinf(y + t);
             val += sinf((x + t) * 0.5f);
             val += sinf((x + y + t) * 0.5f);
             float32 cx = x + PLASMA_SCALE_HALF * (sinf(t * 0.33f));
-			float32 cy = y + PLASMA_SCALE_HALF * (cosf(t * 0.5f));
+            float32 cy = y + PLASMA_SCALE_HALF * (cosf(t * 0.5f));
             val += sinf(sqrt(cx * cx + cy * cy + 1.0f) + t);
             val *= 0.5f;
 
-			float32 r = sinf(val * PI) * 0.5f + 0.5f;
-			float32 g = sinf(val * PI + 2.0f * PI * 0.33f) * 0.5f + 0.5f;
-			float32 b = sinf(val * PI + 4.0f * PI * 0.33f) * 0.5f + 0.5f;
+            float32 r = sinf(val * PI) * 0.5f + 0.5f;
+            float32 g = sinf(val * PI + 2.0f * PI * 0.33f) * 0.5f + 0.5f;
+            float32 b = sinf(val * PI + 4.0f * PI * 0.33f) * 0.5f + 0.5f;
 
-            scg_rgba color = {(uint8)scg_min(r*255, 255), (uint8)scg_min(g*255, 255),
-                              (uint8)scg_min(b*255, 255), 255};
+            scg_rgba color = {(uint8)scg_min(r * 255, 255),
+                              (uint8)scg_min(g * 255, 255),
+                              (uint8)scg_min(b * 255, 255), 255};
             scg_screen_set_pixel(screen, xi, yi, color);
         }
     }
@@ -56,15 +57,15 @@ int main(void) {
     scg_keyboard keyboard;
     scg_keyboard_create(&keyboard);
 
-	float32 t = 0.0f;
+    float32 t = 0.0f;
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
         }
         scg_keyboard_update(&keyboard);
 
-		t += 0.01f;
-		scg_screen_clear(&screen, SCG_RGBA_BLACK);
+        t += 0.01f;
+        scg_screen_clear(&screen, SCG_RGBA_BLACK);
         update_and_draw(&screen, t);
         scg_screen_draw_fps(&screen);
 

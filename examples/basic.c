@@ -1,7 +1,6 @@
 // Music in this demo is 'Arcade Music Loop.wav' by joshuaempyre.
 // Music link: https://freesound.org/people/joshuaempyre/sounds/251461/
 
-#include <stdio.h>
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
@@ -35,6 +34,9 @@ int main(void) {
     }
     scg_screen_log_info(&screen);
 
+    scg_keyboard keyboard;
+    scg_keyboard_create(&keyboard);
+
     scg_sound_device sound_device;
     return_status =
         scg_sound_device_create(&sound_device, screen.target_frames_per_sec);
@@ -57,6 +59,11 @@ int main(void) {
     scg_sound_play(&music);
 
     while (scg_screen_is_running(&screen)) {
+        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
+            scg_screen_close(&screen);
+        }
+        scg_keyboard_update(&keyboard);
+
         scg_sound_device_update(&sound_device);
 
         update_and_draw(&screen);

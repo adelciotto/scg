@@ -27,7 +27,6 @@
 //  - multiline
 //  - different colored characters
 // input:
-//  - keyboard
 //  - mouse
 //  - gamepad
 // simple audio - maybe simplify api?
@@ -97,6 +96,7 @@ typedef struct scg_rgba scg_rgba;
     }
 
 typedef struct scg_screen scg_screen;
+
 scg_return_status scg_screen_create(scg_screen *screen, const char *title,
                                     int width, int height, int scale,
                                     int fullscreen);
@@ -109,10 +109,12 @@ extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
 extern void scg_screen_draw_fps(scg_screen *screen);
 extern void scg_screen_present(scg_screen *screen);
 extern void scg_screen_log_info(scg_screen *screen);
+extern void scg_screen_close(scg_screen *screen);
 extern void scg_screen_destroy(scg_screen *screen);
 
 typedef struct scg_sound_device scg_sound_device;
 typedef struct scg_sound scg_sound;
+
 extern scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
                                                  int frames_per_sec);
 extern void scg_sound_device_log_info(scg_sound_device *sound_device);
@@ -122,6 +124,27 @@ scg_sound_create_from_wav(scg_sound_device *sound_device, scg_sound *sound,
 extern void scg_sound_play(scg_sound *sound);
 extern void scg_sound_device_update(scg_sound_device *sound_device);
 extern void scg_sound_device_destroy(scg_sound_device *sound_device);
+
+typedef enum scg_key_code {
+    SCG_KEY_UP = SDL_SCANCODE_UP,
+    SCG_KEY_DOWN = SDL_SCANCODE_DOWN,
+    SCG_KEY_LEFT = SDL_SCANCODE_LEFT,
+    SCG_KEY_RIGHT = SDL_SCANCODE_RIGHT,
+    SCG_KEY_X = SDL_SCANCODE_X,
+    SCG_KEY_C = SDL_SCANCODE_C,
+    SCG_KEY_Z = SDL_SCANCODE_Z,
+    SCG_KEY_SPACE = SDL_SCANCODE_SPACE,
+    SCG_KEY_ESCAPE = SDL_SCANCODE_ESCAPE
+} scg_key_code;
+
+typedef struct scg_keyboard scg_keyboard;
+
+extern void scg_keyboard_create(scg_keyboard *keyboard);
+extern int scg_keyboard_is_key_down(scg_keyboard *keyboard, scg_key_code code);
+extern int scg_keyboard_is_key_up(scg_keyboard *keyboard, scg_key_code code);
+extern int scg_keyboard_is_key_triggered(scg_keyboard *keyboard,
+                                         scg_key_code code);
+extern void scg_keyboard_update(scg_keyboard *keyboard);
 
 ///////////////
 //
@@ -201,6 +224,11 @@ struct scg_sound_device {
 
     scg_sound *sounds[SCG_MAX_SOUNDS];
     int num_sounds;
+};
+
+struct scg_keyboard {
+    const uint8 *current_key_states;
+    uint8 previous_key_states[SDL_NUM_SCANCODES];
 };
 
 #endif
@@ -376,11 +404,6 @@ int scg_screen_is_running(scg_screen *screen) {
     case SDL_QUIT:
         screen->is_running = 0;
         break;
-    case SDL_KEYDOWN:
-        if (event.key.keysym.sym == SDLK_ESCAPE) {
-            screen->is_running = 0;
-        }
-        break;
     }
 
     return screen->is_running;
@@ -520,6 +543,14 @@ void scg_screen_log_info(scg_screen *screen) {
     scg_log_info("screen has w:%d, h:%d, scale:%d, target fps:%d",
                  screen->width, screen->height, screen->scale,
                  screen->target_frames_per_sec);
+}
+
+//
+// scg_screen_close implementation
+//
+
+void scg_screen_close(scg_screen *screen) {
+    screen->is_running = 0;
 }
 
 //
@@ -691,6 +722,50 @@ void scg_sound_device_destroy(scg_sound_device *sound_device) {
 
     free(sound_device->buffer);
     SDL_CloseAudioDevice(sound_device->device_id);
+}
+
+//
+// scg_keyboard_create implementation
+//
+
+void scg_keyboard_create(scg_keyboard *keyboard) {
+    keyboard->current_key_states = SDL_GetKeyboardState(NULL);
+    SDL_memset(keyboard->previous_key_states, 0,
+               sizeof(uint8) * SDL_NUM_SCANCODES);
+}
+
+//
+// scg_keyboard_is_key_down implementation
+//
+
+int scg_keyboard_is_key_down(scg_keyboard *keyboard, scg_key_code key) {
+    return keyboard->current_key_states[key] == 1;
+}
+
+//
+// scg_keyboard_is_key_up implementation
+//
+
+int scg_keyboard_is_key_up(scg_keyboard *keyboard, scg_key_code key) {
+    return keyboard->current_key_states[key] == 0;
+}
+
+//
+// scg_keyboard_is_key_triggered implementation
+//
+
+int scg_keyboard_is_key_triggered(scg_keyboard *keyboard, scg_key_code key) {
+    return keyboard->previous_key_states[key] == 0 &&
+           keyboard->current_key_states[key] == 1;
+}
+
+//
+// scg_keyboard_update implementation
+//
+
+void scg_keyboard_update(scg_keyboard *keyboard) {
+    SDL_memcpy(keyboard->previous_key_states, keyboard->current_key_states,
+               sizeof(uint8) * SDL_NUM_SCANCODES);
 }
 
 const char scg__font8x8[128][8] = {

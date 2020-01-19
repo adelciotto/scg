@@ -7,13 +7,13 @@
 static void update_and_draw(scg_screen *screen) {
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
-            scg_rgba color = {(uint8_t)scg_min(x, 255),
-                              (uint8_t)scg_min(y, 255), 128, 255};
-            scg_screen_set_pixel(screen, x, y, color);
+            scg_pixel pixel = scg_pixel_create((uint8_t)scg_min(x, 255),
+                                               (uint8_t)scg_min(y, 255), 128);
+            scg_screen_set_pixel(screen, x, y, pixel);
         }
     }
 
-    scg_rgba text_color = SCG_RGBA_WHITE;
+    scg_pixel text_color = SCG_PIXEL_WHITE;
     scg_screen_draw_string(screen, "Hello, World!", screen->width / 2,
                            screen->height / 2, 1, text_color);
 }

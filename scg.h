@@ -17,7 +17,8 @@
 //	- load screen config (width, height, fullscreen, etc...)
 //	- load sound config (volume, etc..)
 // color:
-//  - rgba color as union
+//	- seperate pixel and color?
+//		- store color components as floats between 0..1?
 //  - color conversions (hsv, hsl, etc)
 // drawing:
 //	- basic primitives (lines, rectangle, circle, etc)
@@ -61,32 +62,16 @@ extern uint64_t scg_get_performance_frequency(void);
 extern float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start);
 extern float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start);
 
-typedef struct scg_rgba scg_rgba;
+typedef union scg_pixel scg_pixel;
 
-#define SCG_RGBA_WHITE                                                         \
-    (scg_rgba) {                                                               \
-        255, 255, 255, 255                                                     \
-    }
-#define SCG_RGBA_BLACK                                                         \
-    (scg_rgba) {                                                               \
-        0, 0, 0, 255                                                           \
-    }
-#define SCG_RGBA_RED                                                           \
-    (scg_rgba) {                                                               \
-        255, 0, 0, 255                                                         \
-    }
-#define SCG_RGBA_GREEN                                                         \
-    (scg_rgba) {                                                               \
-        0, 255, 0, 255                                                         \
-    }
-#define SCG_RGBA_BLUE                                                          \
-    (scg_rgba) {                                                               \
-        0, 0, 255, 255                                                         \
-    }
-#define SCG_RGBA_YELLOW                                                        \
-    (scg_rgba) {                                                               \
-        255, 255, 0, 255                                                       \
-    }
+extern scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b);
+
+#define SCG_PIXEL_WHITE scg_pixel_create(255, 255, 255)
+#define SCG_PIXEL_BLACK scg_pixel_create(0, 0, 0)
+#define SCG_PIXEL_RED scg_pixel_create(255, 0, 0)
+#define SCG_PIXEL_GREEN scg_pixel_create(0, 255, 0)
+#define SCG_PIXEL_BLUE scg_pixel_create(0, 0, 255)
+#define SCG_PIXEL_YELLOW scg_pixel_create(255, 255, 0)
 
 typedef struct scg_screen scg_screen;
 
@@ -95,14 +80,14 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
                                     int fullscreen);
 extern int scg_screen_is_running(scg_screen *screen);
 extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
-                                 scg_rgba color);
-extern void scg_screen_clear(scg_screen *screen, scg_rgba color);
+                                 scg_pixel pixel);
+extern void scg_screen_clear(scg_screen *screen, scg_pixel pixel);
 extern void scg_screen_fill_rect(scg_screen *screen, float32_t screen_x,
                                  float32_t screen_y, float32_t width,
-                                 float32_t height, scg_rgba color);
+                                 float32_t height, scg_pixel pixel);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str,
                                    float32_t x, float32_t y,
-                                   int anchor_to_center, scg_rgba color);
+                                   int anchor_to_center, scg_pixel pixel);
 extern void scg_screen_draw_fps(scg_screen *screen);
 extern void scg_screen_present(scg_screen *screen);
 extern void scg_screen_log_info(scg_screen *screen);
@@ -167,11 +152,14 @@ struct scg_return_status {
 
 extern const char scg__font8x8[128][8];
 
-struct scg_rgba {
-    uint8_t r;
-    uint8_t g;
-    uint8_t b;
-    uint8_t a;
+union scg_pixel {
+    uint32_t packed;
+    struct {
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+        uint8_t a;
+    } color;
 };
 
 struct scg_screen {
@@ -300,6 +288,20 @@ float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
     return (float64_t)((end - start) * 1000) / scg_get_performance_frequency();
 }
 
+//
+// scg_pixel_create implementation
+//
+
+scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b) {
+    scg_pixel pixel;
+    pixel.color.r = r;
+    pixel.color.g = g;
+    pixel.color.b = b;
+    pixel.color.a = 255;
+
+    return pixel;
+}
+
 static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
     int result = display_mode.refresh_rate;
 
@@ -361,7 +363,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     SDL_RenderSetLogicalSize(sdl_renderer, width, height);
 
     SDL_Texture *sdl_texture =
-        SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGBA8888,
+        SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGBA32,
                           SDL_TEXTUREACCESS_STREAMING, width, height);
     if (sdl_texture == NULL) {
         return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
@@ -413,10 +415,6 @@ static int scg__pixelxy_to_index(int x, int y, int pitch) {
     return (y * pitch / 4) + x;
 }
 
-static uint32_t scg__color_to_int(scg_rgba color) {
-    return (color.r << 24) + (color.g << 16) + (color.b << 8) + color.a;
-}
-
 static int scg__round_float_to_int(float32_t value) {
     return (int)(value + 0.5f);
 }
@@ -425,12 +423,12 @@ static int scg__round_float_to_int(float32_t value) {
 // scg_screen_set_pixel implementation
 //
 
-void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_rgba color) {
+void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
     if (x >= 0 && x < screen->width && y >= 0 && y < screen->height) {
         uint32_t *pixels = (uint32_t *)screen->sdl_surface->pixels;
 
         int index = scg__pixelxy_to_index(x, y, screen->sdl_surface->pitch);
-        pixels[index] = scg__color_to_int(color);
+        pixels[index] = pixel.packed;
     }
 }
 
@@ -438,10 +436,10 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_rgba color) {
 // scg_screen_clear implementation
 //
 
-void scg_screen_clear(scg_screen *screen, scg_rgba color) {
+void scg_screen_clear(scg_screen *screen, scg_pixel pixel) {
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
-            scg_screen_set_pixel(screen, x, y, color);
+            scg_screen_set_pixel(screen, x, y, pixel);
         }
     }
 }
@@ -452,7 +450,7 @@ void scg_screen_clear(scg_screen *screen, scg_rgba color) {
 
 void scg_screen_fill_rect(scg_screen *screen, float32_t screen_x,
                           float32_t screen_y, float32_t width, float32_t height,
-                          scg_rgba color) {
+                          scg_pixel pixel) {
     int x0 = scg__round_float_to_int(screen_x);
     int y0 = scg__round_float_to_int(screen_y);
     int x1 = scg__round_float_to_int(screen_x + width);
@@ -460,14 +458,14 @@ void scg_screen_fill_rect(scg_screen *screen, float32_t screen_x,
 
     for (int y = y0; y < y1; y++) {
         for (int x = x0; x < x1; x++) {
-            scg_screen_set_pixel(screen, x, y, color);
+            scg_screen_set_pixel(screen, x, y, pixel);
         }
     }
 }
 
 static void scg__draw_char(scg_screen *screen, const char *char_bitmap,
                            float32_t screen_x, float32_t screen_y,
-                           scg_rgba color) {
+                           scg_pixel pixel) {
     for (int y = 0; y < SCG_FONT_SIZE; y++) {
         for (int x = 0; x < SCG_FONT_SIZE; x++) {
             int set = char_bitmap[y] & 1 << x;
@@ -476,7 +474,7 @@ static void scg__draw_char(scg_screen *screen, const char *char_bitmap,
                 int xpos = scg__round_float_to_int(screen_x + x);
                 int ypos = scg__round_float_to_int(screen_y + y);
 
-                scg_screen_set_pixel(screen, xpos, ypos, color);
+                scg_screen_set_pixel(screen, xpos, ypos, pixel);
             }
         }
     }
@@ -492,7 +490,8 @@ static int scg__string_width(const char *str, int size) {
 // TODO: Multiline strings
 
 void scg_screen_draw_string(scg_screen *screen, const char *str, float32_t x,
-                            float32_t y, int anchor_to_center, scg_rgba color) {
+                            float32_t y, int anchor_to_center,
+                            scg_pixel pixel) {
     float32_t current_x = x;
     float32_t current_y = y;
 
@@ -508,7 +507,7 @@ void scg_screen_draw_string(scg_screen *screen, const char *str, float32_t x,
             char_code = 63; // draw '?' for unknown char
         }
         scg__draw_char(screen, scg__font8x8[char_code], current_x, current_y,
-                       color);
+                       pixel);
 
         current_x += SCG_FONT_SIZE;
     }
@@ -524,16 +523,16 @@ void scg_screen_draw_fps(scg_screen *screen) {
     char buffer[bsize];
     snprintf(buffer, bsize + 1, "fps:%f", fps);
 
-    scg_rgba text_color = SCG_RGBA_GREEN;
+    scg_pixel pixel = SCG_PIXEL_GREEN;
     float32_t target_fps = (float32_t)screen->target_frames_per_sec;
     if (fps < target_fps * 0.95) {
-        text_color = SCG_RGBA_YELLOW;
+        pixel = SCG_PIXEL_YELLOW;
     }
     if (fps < target_fps * 0.5) {
-        text_color = SCG_RGBA_RED;
+        pixel = SCG_PIXEL_RED;
     }
 
-    scg_screen_draw_string(screen, buffer, 10.0f, 10.0f, 0, text_color);
+    scg_screen_draw_string(screen, buffer, 10.0f, 10.0f, 0, pixel);
 }
 
 //

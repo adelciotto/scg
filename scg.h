@@ -17,6 +17,7 @@
 //	- load screen config (width, height, fullscreen, etc...)
 //	- load sound config (volume, etc..)
 // color:
+//  - rgba color as union
 //  - color conversions (hsv, hsl, etc)
 // drawing:
 //	- basic primitives (lines, rectangle, circle, etc)
@@ -103,8 +104,12 @@ extern int scg_screen_is_running(scg_screen *screen);
 extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
                                  scg_rgba color);
 extern void scg_screen_clear(scg_screen *screen, scg_rgba color);
-extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
-                                   int y, int anchor_to_center, scg_rgba color);
+extern void scg_screen_fill_rect(scg_screen *screen, float32 screen_x,
+                                 float32 screen_y, float32 width,
+                                 float32 height, scg_rgba color);
+extern void scg_screen_draw_string(scg_screen *screen, const char *str,
+                                   float32 x, float32 y, int anchor_to_center,
+                                   scg_rgba color);
 extern void scg_screen_draw_fps(scg_screen *screen);
 extern void scg_screen_present(scg_screen *screen);
 extern void scg_screen_log_info(scg_screen *screen);
@@ -351,6 +356,9 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
         SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     }
 
+    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+
     SDL_Renderer *sdl_renderer = SDL_CreateRenderer(
         sdl_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (sdl_renderer == NULL) {
@@ -416,6 +424,10 @@ static uint32 scg__color_to_int(scg_rgba color) {
     return (color.r << 24) + (color.g << 16) + (color.b << 8) + color.a;
 }
 
+static sint32 scg__round_float_to_int(float32 value) {
+    return (sint32)(value + 0.5f);
+}
+
 //
 // scg_screen_set_pixel implementation
 //
@@ -441,14 +453,36 @@ void scg_screen_clear(scg_screen *screen, scg_rgba color) {
     }
 }
 
+//
+// scg_screen_fill_rect implementation
+//
+
+void scg_screen_fill_rect(scg_screen *screen, float32 screen_x,
+                          float32 screen_y, float32 width, float32 height,
+                          scg_rgba color) {
+    int x0 = scg__round_float_to_int(screen_x);
+    int y0 = scg__round_float_to_int(screen_y);
+    int x1 = scg__round_float_to_int(screen_x + width);
+    int y1 = scg__round_float_to_int(screen_y + height);
+
+    for (int y = y0; y < y1; y++) {
+        for (int x = x0; x < x1; x++) {
+            scg_screen_set_pixel(screen, x, y, color);
+        }
+    }
+}
+
 static void scg__draw_char(scg_screen *screen, const char *char_bitmap,
-                           int screen_x, int screen_y, scg_rgba color) {
+                           float32 screen_x, float32 screen_y, scg_rgba color) {
     for (int y = 0; y < SCG_FONT_SIZE; y++) {
         for (int x = 0; x < SCG_FONT_SIZE; x++) {
             int set = char_bitmap[y] & 1 << x;
 
             if (set) {
-                scg_screen_set_pixel(screen, screen_x + x, screen_y + y, color);
+                int xpos = scg__round_float_to_int(screen_x + x);
+                int ypos = scg__round_float_to_int(screen_y + y);
+
+                scg_screen_set_pixel(screen, xpos, ypos, color);
             }
         }
     }
@@ -463,15 +497,15 @@ static int scg__string_width(const char *str, int size) {
 //
 // TODO: Multiline strings
 
-void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
-                            int anchor_to_center, scg_rgba color) {
-    int current_x = x;
-    int current_y = y;
+void scg_screen_draw_string(scg_screen *screen, const char *str, float32 x,
+                            float32 y, int anchor_to_center, scg_rgba color) {
+    float32 current_x = x;
+    float32 current_y = y;
 
     if (anchor_to_center) {
         int width = scg__string_width(str, SCG_FONT_SIZE);
-        current_x = x - width / 2;
-        current_y -= SCG_FONT_SIZE / 2;
+        current_x = x - 0.5f * (float32)width;
+        current_y -= 0.5f * SCG_FONT_SIZE;
     }
 
     for (int i = 0; str[i] != '\0'; i++) {
@@ -505,7 +539,7 @@ void scg_screen_draw_fps(scg_screen *screen) {
         text_color = SCG_RGBA_RED;
     }
 
-    scg_screen_draw_string(screen, buffer, 10, 10, 0, text_color);
+    scg_screen_draw_string(screen, buffer, 10.0f, 10.0f, 0, text_color);
 }
 
 //

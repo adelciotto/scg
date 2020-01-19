@@ -6,33 +6,33 @@
 #define PLASMA_SCALE 20.0
 #define PLASMA_SCALE_HALF PLASMA_SCALE * 0.5
 
-static void update_and_draw(scg_screen *screen, float32 t) {
+static void update_and_draw(scg_screen *screen, float32_t t) {
     const int width = screen->width;
     const int height = screen->height;
 
     for (int yi = 0; yi < height; yi++) {
-        float32 y = (0.5f + yi / (float32)height - 1.0f) * PLASMA_SCALE -
-                    PLASMA_SCALE_HALF;
+        float32_t y = (0.5f + yi / (float32_t)height - 1.0f) * PLASMA_SCALE -
+                      PLASMA_SCALE_HALF;
 
         for (int xi = 0; xi < width; xi++) {
-            float32 x = (0.5f + xi / (float32)width - 1.0f) * PLASMA_SCALE -
-                        PLASMA_SCALE_HALF;
+            float32_t x = (0.5f + xi / (float32_t)width - 1.0f) * PLASMA_SCALE -
+                          PLASMA_SCALE_HALF;
 
-            float32 val = sinf(y + t);
+            float32_t val = sinf(y + t);
             val += sinf((x + t) * 0.5f);
             val += sinf((x + y + t) * 0.5f);
-            float32 cx = x + PLASMA_SCALE_HALF * (sinf(t * 0.33f));
-            float32 cy = y + PLASMA_SCALE_HALF * (cosf(t * 0.5f));
+            float32_t cx = x + PLASMA_SCALE_HALF * (sinf(t * 0.33f));
+            float32_t cy = y + PLASMA_SCALE_HALF * (cosf(t * 0.5f));
             val += sinf(sqrt(cx * cx + cy * cy + 1.0f) + t);
             val *= 0.5f;
 
-            float32 r = sinf(val * PI) * 0.5f + 0.5f;
-            float32 g = sinf(val * PI + 2.0f * PI * 0.33f) * 0.5f + 0.5f;
-            float32 b = sinf(val * PI + 4.0f * PI * 0.33f) * 0.5f + 0.5f;
+            float32_t r = sinf(val * PI) * 0.5f + 0.5f;
+            float32_t g = sinf(val * PI + 2.0f * PI * 0.33f) * 0.5f + 0.5f;
+            float32_t b = sinf(val * PI + 4.0f * PI * 0.33f) * 0.5f + 0.5f;
 
-            scg_rgba color = {(uint8)scg_min(r * 255, 255),
-                              (uint8)scg_min(g * 255, 255),
-                              (uint8)scg_min(b * 255, 255), 255};
+            scg_rgba color = {(uint8_t)scg_min(r * 255, 255),
+                              (uint8_t)scg_min(g * 255, 255),
+                              (uint8_t)scg_min(b * 255, 255), 255};
             scg_screen_set_pixel(screen, xi, yi, color);
         }
     }
@@ -57,7 +57,7 @@ int main(void) {
     scg_keyboard keyboard;
     scg_keyboard_create(&keyboard);
 
-    float32 t = 0.0f;
+    float32_t t = 0.0f;
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);

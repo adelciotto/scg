@@ -21,6 +21,8 @@
 //		- store color components as floats between 0..1?
 //  - color conversions (hsv, hsl, etc)
 // drawing:
+//	- Use OpenGL directly instead of SDL2 renderer
+//	- alpha blend modes
 //	- basic primitives (lines, rectangle, circle, etc)
 //	- load and draw images
 //	- draw primitives/images with transforms (scale, rotate, etc)
@@ -42,7 +44,9 @@
 #define INCLUDE_SCG_H
 
 #include <SDL2/SDL.h>
+#include <math.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #define float32_t float
 #define float64_t double
@@ -56,6 +60,8 @@ typedef struct scg_return_status scg_return_status;
 extern const char *scg_return_status_get_error(scg_return_status return_status);
 
 extern int scg_min(int val, int min);
+extern float32_t scg_minf(float32_t val, float32_t min);
+extern float32_t scg_maxf(float32_t val, float32_t max);
 
 extern uint64_t scg_get_performance_counter(void);
 extern uint64_t scg_get_performance_frequency(void);
@@ -82,12 +88,11 @@ extern int scg_screen_is_running(scg_screen *screen);
 extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
                                  scg_pixel pixel);
 extern void scg_screen_clear(scg_screen *screen, scg_pixel pixel);
-extern void scg_screen_fill_rect(scg_screen *screen, float32_t screen_x,
-                                 float32_t screen_y, float32_t width,
-                                 float32_t height, scg_pixel pixel);
-extern void scg_screen_draw_string(scg_screen *screen, const char *str,
-                                   float32_t x, float32_t y,
-                                   int anchor_to_center, scg_pixel pixel);
+extern void scg_screen_fill_rect(scg_screen *screen, int screen_x, int screen_y,
+                                 int width, int height, scg_pixel pixel);
+extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
+                                   int y, int anchor_to_center,
+                                   scg_pixel pixel);
 extern void scg_screen_draw_fps(scg_screen *screen);
 extern void scg_screen_present(scg_screen *screen);
 extern void scg_screen_log_info(scg_screen *screen);
@@ -138,6 +143,7 @@ extern void scg_keyboard_update(scg_keyboard *keyboard);
 enum scg_return_status_code {
     SCG_RETURN_STATUS_SUCCESS,
     SCG_RETURN_STATUS_SDL_ERROR,
+    SCG_RETURN_STATUS_PIXEL_BUFFER_ALLOCATION_FAILURE,
     SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED,
     SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE,
     SCG_RETURN_STATUS_MAX_SOUNDS_REACHED
@@ -178,12 +184,12 @@ struct scg_screen {
     } frame_metrics;
 
     int is_running;
-    int is_locked;
 
     SDL_Window *sdl_window;
     SDL_Renderer *sdl_renderer;
     SDL_Texture *sdl_texture;
-    SDL_Surface *sdl_surface;
+    uint32_t *pixels;
+    int pitch;
 };
 
 struct scg_sound {
@@ -236,6 +242,8 @@ const char *scg_return_status_get_error(scg_return_status return_status) {
     switch (return_status.code) {
     case SCG_RETURN_STATUS_SDL_ERROR:
         return SDL_GetError();
+    case SCG_RETURN_STATUS_PIXEL_BUFFER_ALLOCATION_FAILURE:
+        return "failed to allocate memory for pixel buffer";
     case SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED:
         return "AUDIO_F32 format not supported";
     case SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE:
@@ -254,6 +262,22 @@ const char *scg_return_status_get_error(scg_return_status return_status) {
 
 int scg_min(int val, int min) {
     return val < min ? val : min;
+}
+
+//
+// scg_minf implementation
+//
+
+float32_t scg_minf(float32_t val, float32_t min) {
+    return val < min ? val : min;
+}
+
+//
+// scg_maxf implementation
+//
+
+float32_t scg_maxf(float32_t val, float32_t max) {
+    return val > max ? val : max;
 }
 
 //
@@ -312,18 +336,6 @@ static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
     return result;
 }
 
-scg_return_status scg__screen_lock(scg_screen *screen) {
-    if (SDL_MUSTLOCK(screen->sdl_surface)) {
-        if (SDL_LockSurface(screen->sdl_surface) < 0) {
-            return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
-        }
-
-        screen->is_locked = 1;
-    }
-
-    return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS};
-}
-
 //
 // scg_screen_create implementation
 //
@@ -369,10 +381,10 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
         return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
     }
 
-    SDL_Surface *sdl_surface = SDL_CreateRGBSurfaceWithFormat(
-        0, width, height, 32, SDL_PIXELFORMAT_RGBA32);
-    if (sdl_surface == NULL) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
+    uint32_t *pixels = (uint32_t *)calloc(width * height, sizeof(*pixels));
+    if (pixels == NULL) {
+        return (scg_return_status){
+            1, SCG_RETURN_STATUS_PIXEL_BUFFER_ALLOCATION_FAILURE};
     }
 
     screen->title = title;
@@ -386,10 +398,9 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     screen->sdl_window = sdl_window;
     screen->sdl_renderer = sdl_renderer;
     screen->sdl_texture = sdl_texture;
-    screen->sdl_surface = sdl_surface;
+    screen->pixels = pixels;
+    screen->pitch = screen->width * sizeof(uint32_t);
     screen->is_running = 1;
-
-    scg__screen_lock(screen);
 
     return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS};
 }
@@ -411,24 +422,14 @@ int scg_screen_is_running(scg_screen *screen) {
     return screen->is_running;
 }
 
-static int scg__pixelxy_to_index(int x, int y, int pitch) {
-    return (y * pitch / 4) + x;
-}
-
-static int scg__round_float_to_int(float32_t value) {
-    return (int)(value + 0.5f);
-}
-
 //
 // scg_screen_set_pixel implementation
 //
 
 void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
     if (x >= 0 && x < screen->width && y >= 0 && y < screen->height) {
-        uint32_t *pixels = (uint32_t *)screen->sdl_surface->pixels;
-
-        int index = scg__pixelxy_to_index(x, y, screen->sdl_surface->pitch);
-        pixels[index] = pixel.packed;
+        int index = (y * screen->width) + x;
+        screen->pixels[index] = pixel.packed;
     }
 }
 
@@ -448,33 +449,23 @@ void scg_screen_clear(scg_screen *screen, scg_pixel pixel) {
 // scg_screen_fill_rect implementation
 //
 
-void scg_screen_fill_rect(scg_screen *screen, float32_t screen_x,
-                          float32_t screen_y, float32_t width, float32_t height,
-                          scg_pixel pixel) {
-    int x0 = scg__round_float_to_int(screen_x);
-    int y0 = scg__round_float_to_int(screen_y);
-    int x1 = scg__round_float_to_int(screen_x + width);
-    int y1 = scg__round_float_to_int(screen_y + height);
-
-    for (int y = y0; y < y1; y++) {
-        for (int x = x0; x < x1; x++) {
+void scg_screen_fill_rect(scg_screen *screen, int x_min, int y_min, int x_max,
+                          int y_max, scg_pixel pixel) {
+    for (int y = y_min; y < y_max; y++) {
+        for (int x = x_min; x < x_max; x++) {
             scg_screen_set_pixel(screen, x, y, pixel);
         }
     }
 }
 
 static void scg__draw_char(scg_screen *screen, const char *char_bitmap,
-                           float32_t screen_x, float32_t screen_y,
-                           scg_pixel pixel) {
+                           int screen_x, int screen_y, scg_pixel pixel) {
     for (int y = 0; y < SCG_FONT_SIZE; y++) {
         for (int x = 0; x < SCG_FONT_SIZE; x++) {
             int set = char_bitmap[y] & 1 << x;
 
             if (set) {
-                int xpos = scg__round_float_to_int(screen_x + x);
-                int ypos = scg__round_float_to_int(screen_y + y);
-
-                scg_screen_set_pixel(screen, xpos, ypos, pixel);
+                scg_screen_set_pixel(screen, screen_x + x, screen_y + y, pixel);
             }
         }
     }
@@ -489,16 +480,15 @@ static int scg__string_width(const char *str, int size) {
 //
 // TODO: Multiline strings
 
-void scg_screen_draw_string(scg_screen *screen, const char *str, float32_t x,
-                            float32_t y, int anchor_to_center,
-                            scg_pixel pixel) {
-    float32_t current_x = x;
-    float32_t current_y = y;
+void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
+                            int anchor_to_center, scg_pixel pixel) {
+    int current_x = x;
+    int current_y = y;
 
     if (anchor_to_center) {
         int width = scg__string_width(str, SCG_FONT_SIZE);
-        current_x = x - 0.5f * (float32_t)width;
-        current_y -= 0.5f * SCG_FONT_SIZE;
+        current_x = x - width / 2;
+        current_y -= SCG_FONT_SIZE / 2;
     }
 
     for (int i = 0; str[i] != '\0'; i++) {
@@ -532,7 +522,7 @@ void scg_screen_draw_fps(scg_screen *screen) {
         pixel = SCG_PIXEL_RED;
     }
 
-    scg_screen_draw_string(screen, buffer, 10.0f, 10.0f, 0, pixel);
+    scg_screen_draw_string(screen, buffer, 10, 10, 0, pixel);
 }
 
 //
@@ -551,8 +541,7 @@ void scg_screen_present(scg_screen *screen) {
 
     Uint64 end_frame_counter = scg_get_performance_counter();
 
-    SDL_UpdateTexture(screen->sdl_texture, NULL, screen->sdl_surface->pixels,
-                      screen->sdl_surface->pitch);
+    SDL_UpdateTexture(screen->sdl_texture, NULL, screen->pixels, screen->pitch);
     SDL_RenderClear(screen->sdl_renderer);
     SDL_RenderCopy(screen->sdl_renderer, screen->sdl_texture, NULL, NULL);
     SDL_RenderPresent(screen->sdl_renderer);
@@ -592,7 +581,7 @@ void scg_screen_close(scg_screen *screen) {
 //
 
 void scg_screen_destroy(scg_screen *screen) {
-    SDL_FreeSurface(screen->sdl_surface);
+    free(screen->pixels);
     SDL_DestroyTexture(screen->sdl_texture);
     SDL_DestroyRenderer(screen->sdl_renderer);
     SDL_DestroyWindow(screen->sdl_window);

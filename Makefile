@@ -2,6 +2,14 @@ CFLAGS := -Wall -Werror -Wextra -std=c99 -pedantic
 LDFLAGS := -lm $(shell pkg-config --libs sdl2)
 INCLUDES := $(shell pkg-config --cflags sdl2)
 
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S), Linux)
+	LDFLAGS += $(shell pkg-config --libs gl)
+	INCLUDES += $(shell pkg-config --cflags gl)
+else ifeq ($(UNAME_S), Darwin)
+	LDFLAGS += -framework OpenGL
+endif
+
 DEBUG ?= 0
 ifeq ($(DEBUG), 1)
 	CFLAGS += -g -DDEBUG

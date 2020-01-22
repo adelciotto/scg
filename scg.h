@@ -43,7 +43,15 @@
 #ifndef INCLUDE_SCG_H
 #define INCLUDE_SCG_H
 
+#if __APPLE__
+#define GL_SILENCE_DEPRECATION
+#include <OpenGL/gl.h>
+#elif __linux__
+#include <GL/gl.h>
+#endif
+
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_opengl.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -186,8 +194,8 @@ struct scg_screen {
     int is_running;
 
     SDL_Window *sdl_window;
-    SDL_Renderer *sdl_renderer;
-    SDL_Texture *sdl_texture;
+    GLuint gl_buffer;
+    SDL_GLContext *gl_context;
     uint32_t *pixels;
     int pitch;
 };
@@ -354,7 +362,8 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
 
     SDL_Window *sdl_window = SDL_CreateWindow(
         title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width * scale,
-        height * scale, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+        height * scale,
+        SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
     if (sdl_window == NULL) {
         return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
     }
@@ -366,18 +375,26 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
     SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
 
-    SDL_Renderer *sdl_renderer = SDL_CreateRenderer(
-        sdl_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (sdl_renderer == NULL) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
-    }
+    /* SDL_Renderer *sdl_renderer = SDL_CreateRenderer( */
+    /*     sdl_window, -1, SDL_RENDERER_ACCELERATED |
+     * SDL_RENDERER_PRESENTVSYNC); */
+    /* if (sdl_renderer == NULL) { */
+    /*     return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR}; */
+    /* } */
 
-    SDL_RenderSetLogicalSize(sdl_renderer, width, height);
+    /* SDL_RenderSetLogicalSize(sdl_renderer, width, height); */
 
-    SDL_Texture *sdl_texture =
-        SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGBA32,
-                          SDL_TEXTUREACCESS_STREAMING, width, height);
-    if (sdl_texture == NULL) {
+    /* SDL_Texture *sdl_texture = */
+    /*     SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGBA32, */
+    /*                       SDL_TEXTUREACCESS_STREAMING, width, height); */
+    /* if (sdl_texture == NULL) { */
+    /*     return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR}; */
+    /* } */
+
+    /* SDL_SetTextureBlendMode(sdl_texture, SDL_BLENDMODE_NONE); */
+
+    SDL_GLContext *gl_context = SDL_GL_CreateContext(sdl_window);
+    if (gl_context == NULL) {
         return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
     }
 
@@ -396,11 +413,19 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
         1.0 / (float64_t)screen->target_frames_per_sec;
     screen->last_frame_counter = scg_get_performance_counter();
     screen->sdl_window = sdl_window;
-    screen->sdl_renderer = sdl_renderer;
-    screen->sdl_texture = sdl_texture;
+    screen->gl_context = gl_context;
     screen->pixels = pixels;
     screen->pitch = screen->width * sizeof(uint32_t);
     screen->is_running = 1;
+
+    glEnable(GL_TEXTURE_2D);
+    glGenTextures(1, &screen->gl_buffer);
+    glBindTexture(GL_TEXTURE_2D, screen->gl_buffer);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_DECAL);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, screen->width, screen->height, 0,
+                 GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
     return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS};
 }
@@ -449,11 +474,16 @@ void scg_screen_clear(scg_screen *screen, scg_pixel pixel) {
 // scg_screen_fill_rect implementation
 //
 
-void scg_screen_fill_rect(scg_screen *screen, int x_min, int y_min, int x_max,
-                          int y_max, scg_pixel pixel) {
-    for (int y = y_min; y < y_max; y++) {
-        for (int x = x_min; x < x_max; x++) {
-            scg_screen_set_pixel(screen, x, y, pixel);
+void scg_screen_fill_rect(scg_screen *screen, int x, int y, int width,
+                          int height, scg_pixel pixel) {
+    int x0 = x;
+    int y0 = y;
+    int x1 = x + width;
+    int y1 = y + height;
+
+    for (int i = y0; i < y1; i++) {
+        for (int j = x0; j < x1; j++) {
+            scg_screen_set_pixel(screen, j, i, pixel);
         }
     }
 }
@@ -541,10 +571,30 @@ void scg_screen_present(scg_screen *screen) {
 
     Uint64 end_frame_counter = scg_get_performance_counter();
 
-    SDL_UpdateTexture(screen->sdl_texture, NULL, screen->pixels, screen->pitch);
-    SDL_RenderClear(screen->sdl_renderer);
-    SDL_RenderCopy(screen->sdl_renderer, screen->sdl_texture, NULL, NULL);
-    SDL_RenderPresent(screen->sdl_renderer);
+    glViewport(0, 0, screen->width * screen->scale,
+               screen->height * screen->scale);
+
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, screen->width, screen->height,
+                    GL_RGBA, GL_UNSIGNED_BYTE, screen->pixels);
+
+    glBegin(GL_QUADS);
+    glTexCoord2f(0.0, 1.0);
+    glVertex3f(-1.0f, -1.0f, 0.0f);
+    glTexCoord2f(0.0, 0.0);
+    glVertex3f(-1.0f, 1.0f, 0.0f);
+    glTexCoord2f(1.0, 0.0);
+    glVertex3f(1.0f, 1.0f, 0.0f);
+    glTexCoord2f(1.0, 1.0);
+    glVertex3f(1.0f, -1.0f, 0.0f);
+    glEnd();
+
+    /* SDL_UpdateTexture(screen->sdl_texture, NULL, screen->pixels,
+     * screen->pitch); */
+    /* SDL_RenderClear(screen->sdl_renderer); */
+    /* SDL_RenderCopy(screen->sdl_renderer, screen->sdl_texture, NULL, NULL); */
+    /* SDL_RenderPresent(screen->sdl_renderer); */
+
+    SDL_GL_SwapWindow(screen->sdl_window);
 
     screen->frame_metrics.time_per_frame_secs = scg_get_elapsed_time_secs(
         end_frame_counter, screen->last_frame_counter);
@@ -582,9 +632,10 @@ void scg_screen_close(scg_screen *screen) {
 
 void scg_screen_destroy(scg_screen *screen) {
     free(screen->pixels);
-    SDL_DestroyTexture(screen->sdl_texture);
-    SDL_DestroyRenderer(screen->sdl_renderer);
-    SDL_DestroyWindow(screen->sdl_window);
+    SDL_GL_DeleteContext(screen->gl_context);
+    /* SDL_DestroyTexture(screen->sdl_texture); */
+    /* SDL_DestroyRenderer(screen->sdl_renderer); */
+    /* SDL_DestroyWindow(screen->sdl_window); */
     SDL_Quit();
 }
 

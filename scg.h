@@ -449,23 +449,28 @@ void scg_screen_clear(scg_screen *screen, scg_pixel pixel) {
 // scg_screen_fill_rect implementation
 //
 
-void scg_screen_fill_rect(scg_screen *screen, int x_min, int y_min, int x_max,
-                          int y_max, scg_pixel pixel) {
-    for (int y = y_min; y < y_max; y++) {
-        for (int x = x_min; x < x_max; x++) {
-            scg_screen_set_pixel(screen, x, y, pixel);
+void scg_screen_fill_rect(scg_screen *screen, int x, int y, int width,
+                          int height, scg_pixel pixel) {
+    int x0 = x;
+    int y0 = y;
+    int x1 = x + width;
+    int y1 = y + height;
+
+    for (int i = y0; i < y1; i++) {
+        for (int j = x0; j < x1; j++) {
+            scg_screen_set_pixel(screen, j, i, pixel);
         }
     }
 }
 
-static void scg__draw_char(scg_screen *screen, const char *char_bitmap,
-                           int screen_x, int screen_y, scg_pixel pixel) {
-    for (int y = 0; y < SCG_FONT_SIZE; y++) {
-        for (int x = 0; x < SCG_FONT_SIZE; x++) {
-            int set = char_bitmap[y] & 1 << x;
+static void scg__draw_char(scg_screen *screen, const char *char_bitmap, int x,
+                           int y, scg_pixel pixel) {
+    for (int i = 0; i < SCG_FONT_SIZE; i++) {
+        for (int j = 0; j < SCG_FONT_SIZE; j++) {
+            int set = char_bitmap[i] & 1 << j;
 
             if (set) {
-                scg_screen_set_pixel(screen, screen_x + x, screen_y + y, pixel);
+                scg_screen_set_pixel(screen, x + j, y + i, pixel);
             }
         }
     }

@@ -537,25 +537,12 @@ void scg_screen_draw_fps(scg_screen *screen) {
 
 void scg_screen_present(scg_screen *screen) {
     // Wait until we have reached the target amount of time per frame (e.g 60hz,
-    // ~16ms). We first attempt to wait by calling SDL_Delay (sleep) with the
-    // amount of time left to reach the target fps.
+    // ~16ms). Spinning in a while loop seems to be the most accurate way to do
+    // this, as trying to use SDL_Delay (sleeping) is dependant on other
+    // factors.
     float64_t elapsed_time_secs = scg_get_elapsed_time_secs(
         scg_get_performance_counter(), screen->last_frame_counter);
     if (elapsed_time_secs < screen->target_time_per_frame_secs) {
-        uint32_t time_to_sleep = (uint32_t)(
-            1000.0 * (screen->target_time_per_frame_secs - elapsed_time_secs));
-        if (time_to_sleep > 0) {
-            SDL_Delay(time_to_sleep);
-        }
-
-        float64_t test_elapsed_time_secs = scg_get_elapsed_time_secs(
-            scg_get_performance_counter(), screen->last_frame_counter);
-        if (test_elapsed_time_secs < screen->target_time_per_frame_secs) {
-            // TODO: log missed sleep time
-        }
-
-        // if we did not wait the exact amount of time required to reach the
-        // target fps, then spin in a while loop until we do.
         while (elapsed_time_secs < screen->target_time_per_frame_secs) {
             elapsed_time_secs = scg_get_elapsed_time_secs(
                 scg_get_performance_counter(), screen->last_frame_counter);

@@ -21,7 +21,6 @@
 //		- store color components as floats between 0..1?
 //  - color conversions (hsv, hsl, etc)
 // drawing:
-//	- Use OpenGL directly instead of SDL2 renderer
 //	- alpha blend modes
 //	- basic primitives (lines, rectangle, circle, etc)
 //	- load and draw images
@@ -301,7 +300,8 @@ Uint64 scg_get_performance_frequency(void) {
 //
 
 float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start) {
-    return (float64_t)(end - start) / scg_get_performance_frequency();
+    return (float64_t)(end - start) /
+           (float64_t)scg_get_performance_frequency();
 }
 
 //
@@ -309,7 +309,8 @@ float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start) {
 //
 
 float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
-    return (float64_t)((end - start) * 1000) / scg_get_performance_frequency();
+    return (float64_t)((end - start) * 1000) /
+           (float64_t)scg_get_performance_frequency();
 }
 
 //
@@ -535,13 +536,30 @@ void scg_screen_draw_fps(scg_screen *screen) {
 //
 
 void scg_screen_present(scg_screen *screen) {
-    // Wait until we have reached the target amount of time per frame.
-    // We wait by just spinning in a while loop, because we should only
-    // be waiting a small amount of milliseconds per frame to sync with
-    // the monitors refresh rate (e.g 60hz, ~16ms).
-    while (scg_get_elapsed_time_secs(scg_get_performance_counter(),
-                                     screen->last_frame_counter) <
-           screen->target_time_per_frame_secs) {
+    // Wait until we have reached the target amount of time per frame (e.g 60hz,
+    // ~16ms). We first attempt to wait by calling SDL_Delay (sleep) with the
+    // amount of time left to reach the target fps.
+    float64_t elapsed_time_secs = scg_get_elapsed_time_secs(
+        scg_get_performance_counter(), screen->last_frame_counter);
+    if (elapsed_time_secs < screen->target_time_per_frame_secs) {
+        uint32_t time_to_sleep = (uint32_t)(
+            1000.0 * (screen->target_time_per_frame_secs - elapsed_time_secs));
+        if (time_to_sleep > 0) {
+            SDL_Delay(time_to_sleep);
+        }
+
+        float64_t test_elapsed_time_secs = scg_get_elapsed_time_secs(
+            scg_get_performance_counter(), screen->last_frame_counter);
+        if (test_elapsed_time_secs < screen->target_time_per_frame_secs) {
+            // TODO: log missed sleep time
+        }
+
+        // if we did not wait the exact amount of time required to reach the
+        // target fps, then spin in a while loop until we do.
+        while (elapsed_time_secs < screen->target_time_per_frame_secs) {
+            elapsed_time_secs = scg_get_elapsed_time_secs(
+                scg_get_performance_counter(), screen->last_frame_counter);
+        }
     }
 
     Uint64 end_frame_counter = scg_get_performance_counter();

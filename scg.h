@@ -90,6 +90,8 @@ extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
 extern void scg_screen_clear(scg_screen *screen, scg_pixel pixel);
 extern void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1,
                                  int y1, scg_pixel pixel);
+extern void scg_screen_draw_rect(scg_screen *screen, int screen_x, int screen_y,
+                                 int width, int height, scg_pixel pixel);
 extern void scg_screen_fill_rect(scg_screen *screen, int screen_x, int screen_y,
                                  int width, int height, scg_pixel pixel);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
@@ -474,7 +476,7 @@ void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1, int y1,
             scg_swap_int(&y0, &y1);
         }
 
-        for (int y = y0; y < y1; y++) {
+        for (int y = y0; y <= y1; y++) {
             scg_screen_set_pixel(screen, x0, y, pixel);
         }
 
@@ -487,7 +489,7 @@ void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1, int y1,
             scg_swap_int(&x0, &x1);
         }
 
-        for (int x = x0; x < x1; x++) {
+        for (int x = x0; x <= x1; x++) {
             scg_screen_set_pixel(screen, x, y0, pixel);
         }
 
@@ -516,6 +518,17 @@ void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1, int y1,
             y0 += step_y;
         }
     }
+}
+
+//
+// scg_screen_draw_rect_implementation
+//
+
+void scg_screen_draw_rect(scg_screen *screen, int x, int y, int width, int height, scg_pixel pixel) {
+	scg_screen_draw_line(screen, x, y, x + width, y, pixel);
+	scg_screen_draw_line(screen, x, y, x, y + height, pixel);
+	scg_screen_draw_line(screen, x, y + height, x + width, y + height, pixel);
+	scg_screen_draw_line(screen, x + width, y, x + width, y + height, pixel);
 }
 
 //

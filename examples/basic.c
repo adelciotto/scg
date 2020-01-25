@@ -7,8 +7,9 @@
 static void update_and_draw(scg_screen *screen) {
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
-            scg_pixel pixel = scg_pixel_create((uint8_t)scg_min(x, 255),
-                                               (uint8_t)scg_min(y, 255), 128);
+            scg_pixel pixel =
+                scg_pixel_create((uint8_t)scg_min_int(x, 255),
+                                 (uint8_t)scg_min_int(y, 255), 128);
             scg_screen_set_pixel(screen, x, y, pixel);
         }
     }

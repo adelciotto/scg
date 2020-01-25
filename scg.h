@@ -58,9 +58,10 @@
 typedef struct scg_return_status scg_return_status;
 extern const char *scg_return_status_get_error(scg_return_status return_status);
 
-extern int scg_min(int val, int min);
-extern float32_t scg_minf(float32_t val, float32_t min);
-extern float32_t scg_maxf(float32_t val, float32_t max);
+extern void scg_swap_int(int *a, int *b);
+extern int scg_min_int(int val, int min);
+extern float32_t scg_min_int_float32(float32_t val, float32_t min);
+extern float32_t scg_max_float32(float32_t val, float32_t max);
 
 extern uint64_t scg_get_performance_counter(void);
 extern uint64_t scg_get_performance_frequency(void);
@@ -87,6 +88,8 @@ extern int scg_screen_is_running(scg_screen *screen);
 extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
                                  scg_pixel pixel);
 extern void scg_screen_clear(scg_screen *screen, scg_pixel pixel);
+extern void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1,
+                                 int y1, scg_pixel pixel);
 extern void scg_screen_fill_rect(scg_screen *screen, int screen_x, int screen_y,
                                  int width, int height, scg_pixel pixel);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
@@ -256,26 +259,36 @@ const char *scg_return_status_get_error(scg_return_status return_status) {
 }
 
 //
-// scg_min implementation
+// scg_swap_int implementation
 //
 
-int scg_min(int val, int min) {
+void scg_swap_int(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+//
+// scg_min_int implementation
+//
+
+int scg_min_int(int val, int min) {
     return val < min ? val : min;
 }
 
 //
-// scg_minf implementation
+// scg_min_int_float32 implementation
 //
 
-float32_t scg_minf(float32_t val, float32_t min) {
+float32_t scg_min_float32(float32_t val, float32_t min) {
     return val < min ? val : min;
 }
 
 //
-// scg_maxf implementation
+// scg_max_float32 implementation
 //
 
-float32_t scg_maxf(float32_t val, float32_t max) {
+float32_t scg_max_float32(float32_t val, float32_t max) {
     return val > max ? val : max;
 }
 
@@ -442,6 +455,65 @@ void scg_screen_clear(scg_screen *screen, scg_pixel pixel) {
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
             scg_screen_set_pixel(screen, x, y, pixel);
+        }
+    }
+}
+
+//
+// scg_screen_draw_line implementation
+//
+
+void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1, int y1,
+                          scg_pixel pixel) {
+    int dx = abs(x1 - x0);
+    int dy = abs(y1 - y0);
+
+    // Line is vertical
+    if (dx == 0) {
+        if (y1 < y0) {
+            scg_swap_int(&y0, &y1);
+        }
+
+        for (int y = y0; y < y1; y++) {
+            scg_screen_set_pixel(screen, x0, y, pixel);
+        }
+
+        return;
+    }
+
+    // Line is horizontal
+    if (dy == 0) {
+        if (x1 < x0) {
+            scg_swap_int(&x0, &x1);
+        }
+
+        for (int x = x0; x < x1; x++) {
+            scg_screen_set_pixel(screen, x, y0, pixel);
+        }
+
+        return;
+    }
+
+    int step_x = x0 < x1 ? 1 : -1;
+    int step_y = y0 < y1 ? 1 : -1;
+    int err = (dx > dy ? dx : -dy) / 2;
+    int e2 = 0;
+
+    for (;;) {
+        scg_screen_set_pixel(screen, x0, y0, pixel);
+
+        if (x0 == x1 && y0 == y1) {
+            break;
+        }
+
+        e2 = err;
+        if (e2 > -dx) {
+            err -= dy;
+            x0 += step_x;
+        }
+        if (e2 < dy) {
+            err += dx;
+            y0 += step_y;
         }
     }
 }

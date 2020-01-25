@@ -30,9 +30,10 @@ static void update_and_draw(scg_screen *screen, float32_t t) {
             float32_t g = sinf(val * PI + 2.0f * PI * 0.33f) * 0.5f + 0.5f;
             float32_t b = sinf(val * PI + 4.0f * PI * 0.33f) * 0.5f + 0.5f;
 
-            scg_pixel pixel = scg_pixel_create((uint8_t)scg_min(r * 255, 255),
-                                               (uint8_t)scg_min(g * 255, 255),
-                                               (uint8_t)scg_min(b * 255, 255));
+            scg_pixel pixel =
+                scg_pixel_create((uint8_t)scg_min_int(r * 255, 255),
+                                 (uint8_t)scg_min_int(g * 255, 255),
+                                 (uint8_t)scg_min_int(b * 255, 255));
             scg_screen_set_pixel(screen, xi, yi, pixel);
         }
     }

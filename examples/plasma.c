@@ -3,7 +3,7 @@
 #include "../scg.h"
 
 #define PI 3.1415926535897932384626433832795
-#define PLASMA_SCALE 20.0
+#define PLASMA_SCALE PI * 2.0f
 #define PLASMA_SCALE_HALF PLASMA_SCALE * 0.5
 
 static void update_and_draw(scg_screen *screen, float32_t t) {

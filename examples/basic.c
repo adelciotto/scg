@@ -14,9 +14,9 @@ static void update_and_draw(scg_screen *screen) {
         }
     }
 
-    scg_pixel text_color = SCG_PIXEL_WHITE;
+    scg_color color = SCG_COLOR_WHITE;
     scg_screen_draw_string(screen, "Hello, World!", screen->width / 2,
-                           screen->height / 2, 1, text_color);
+                           screen->height / 2, 1, color);
 }
 
 int main(void) {

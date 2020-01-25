@@ -17,8 +17,6 @@
 //	- load screen config (width, height, fullscreen, etc...)
 //	- load sound config (volume, etc..)
 // color:
-//	- seperate pixel and color?
-//		- store color components as floats between 0..1?
 //  - color conversions (hsv, hsl, etc)
 // drawing:
 //	- alpha blend modes
@@ -72,12 +70,17 @@ typedef union scg_pixel scg_pixel;
 
 extern scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b);
 
-#define SCG_PIXEL_WHITE scg_pixel_create(255, 255, 255)
-#define SCG_PIXEL_BLACK scg_pixel_create(0, 0, 0)
-#define SCG_PIXEL_RED scg_pixel_create(255, 0, 0)
-#define SCG_PIXEL_GREEN scg_pixel_create(0, 255, 0)
-#define SCG_PIXEL_BLUE scg_pixel_create(0, 0, 255)
-#define SCG_PIXEL_YELLOW scg_pixel_create(255, 255, 0)
+typedef struct scg_color scg_color;
+
+extern scg_color scg_color_create(float32_t r, float32_t g, float32_t b);
+extern scg_pixel scg_color_to_pixel(scg_color color);
+
+#define SCG_COLOR_WHITE scg_color_create(1.0f, 1.0f, 1.0f)
+#define SCG_COLOR_BLACK scg_color_create(0.0, 0.0f, 0.0f)
+#define SCG_COLOR_RED scg_color_create(1.0f, 0.0f, 0.0f)
+#define SCG_COLOR_GREEN scg_color_create(0.0f, 1.0f, 0.0f)
+#define SCG_COLOR_BLUE scg_color_create(0.0f, 0.0f, 1.0f)
+#define SCG_COLOR_YELLOW scg_color_create(1.0f, 1.0f, 0.0f)
 
 typedef struct scg_screen scg_screen;
 
@@ -87,16 +90,14 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
 extern int scg_screen_is_running(scg_screen *screen);
 extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
                                  scg_pixel pixel);
-extern void scg_screen_clear(scg_screen *screen, scg_pixel pixel);
+extern void scg_screen_clear(scg_screen *screen, scg_color color);
 extern void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1,
-                                 int y1, scg_pixel pixel);
+                                 int y1, scg_color color);
 extern void scg_screen_draw_rect(scg_screen *screen, int screen_x, int screen_y,
-                                 int width, int height, scg_pixel pixel);
-extern void scg_screen_fill_rect(scg_screen *screen, int screen_x, int screen_y,
-                                 int width, int height, scg_pixel pixel);
+                                 int width, int height, scg_color color);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
                                    int y, int anchor_to_center,
-                                   scg_pixel pixel);
+                                   scg_color color);
 extern void scg_screen_draw_fps(scg_screen *screen);
 extern void scg_screen_present(scg_screen *screen);
 extern void scg_screen_log_info(scg_screen *screen);
@@ -170,6 +171,13 @@ union scg_pixel {
         uint8_t b;
         uint8_t a;
     } color;
+};
+
+struct scg_color {
+    float32_t r;
+    float32_t g;
+    float32_t b;
+    float32_t a;
 };
 
 struct scg_screen {
@@ -331,12 +339,32 @@ float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
 //
 // scg_pixel_create implementation
 //
-
 scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b) {
     scg_pixel pixel;
     pixel.color.r = r;
     pixel.color.g = g;
     pixel.color.b = b;
+    pixel.color.a = 255;
+
+    return pixel;
+}
+
+//
+// scg_color_create implementation
+//
+scg_color scg_color_create(float32_t r, float32_t g, float32_t b) {
+    return (scg_color){r, g, b, 1.0f};
+}
+
+//
+// scg_rgb_to_pixel implementation
+//
+
+scg_pixel scg_color_to_pixel(scg_color color) {
+    scg_pixel pixel;
+    pixel.color.r = (uint8_t)scg_min_float32(color.r * 255.0f, 255.0f);
+    pixel.color.g = (uint8_t)scg_min_float32(color.g * 255.0f, 255.0f);
+    pixel.color.b = (uint8_t)scg_min_float32(color.b * 255.0f, 255.0f);
     pixel.color.a = 255;
 
     return pixel;
@@ -453,10 +481,10 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
 // scg_screen_clear implementation
 //
 
-void scg_screen_clear(scg_screen *screen, scg_pixel pixel) {
+void scg_screen_clear(scg_screen *screen, scg_color color) {
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
-            scg_screen_set_pixel(screen, x, y, pixel);
+            scg_screen_set_pixel(screen, x, y, scg_color_to_pixel(color));
         }
     }
 }
@@ -466,7 +494,8 @@ void scg_screen_clear(scg_screen *screen, scg_pixel pixel) {
 //
 
 void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1, int y1,
-                          scg_pixel pixel) {
+                          scg_color color) {
+    scg_pixel pixel = scg_color_to_pixel(color);
     int dx = abs(x1 - x0);
     int dy = abs(y1 - y0);
 
@@ -524,29 +553,12 @@ void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1, int y1,
 // scg_screen_draw_rect_implementation
 //
 
-void scg_screen_draw_rect(scg_screen *screen, int x, int y, int width, int height, scg_pixel pixel) {
-	scg_screen_draw_line(screen, x, y, x + width, y, pixel);
-	scg_screen_draw_line(screen, x, y, x, y + height, pixel);
-	scg_screen_draw_line(screen, x, y + height, x + width, y + height, pixel);
-	scg_screen_draw_line(screen, x + width, y, x + width, y + height, pixel);
-}
-
-//
-// scg_screen_fill_rect implementation
-//
-
-void scg_screen_fill_rect(scg_screen *screen, int x, int y, int width,
-                          int height, scg_pixel pixel) {
-    int x0 = x;
-    int y0 = y;
-    int x1 = x + width;
-    int y1 = y + height;
-
-    for (int i = y0; i < y1; i++) {
-        for (int j = x0; j < x1; j++) {
-            scg_screen_set_pixel(screen, j, i, pixel);
-        }
-    }
+void scg_screen_draw_rect(scg_screen *screen, int x, int y, int width,
+                          int height, scg_color color) {
+    scg_screen_draw_line(screen, x, y, x + width, y, color);
+    scg_screen_draw_line(screen, x, y, x, y + height, color);
+    scg_screen_draw_line(screen, x, y + height, x + width, y + height, color);
+    scg_screen_draw_line(screen, x + width, y, x + width, y + height, color);
 }
 
 static void scg__draw_char(scg_screen *screen, const char *char_bitmap, int x,
@@ -572,7 +584,9 @@ static int scg__string_width(const char *str, int size) {
 // TODO: Multiline strings
 
 void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
-                            int anchor_to_center, scg_pixel pixel) {
+                            int anchor_to_center, scg_color color) {
+    scg_pixel pixel = scg_color_to_pixel(color);
+
     int current_x = x;
     int current_y = y;
 
@@ -604,16 +618,16 @@ void scg_screen_draw_fps(scg_screen *screen) {
     char buffer[bsize];
     snprintf(buffer, bsize + 1, "fps:%f", fps);
 
-    scg_pixel pixel = SCG_PIXEL_GREEN;
+    scg_color color = SCG_COLOR_GREEN;
     float32_t target_fps = (float32_t)screen->target_frames_per_sec;
     if (fps < target_fps * 0.95) {
-        pixel = SCG_PIXEL_YELLOW;
+        color = SCG_COLOR_YELLOW;
     }
     if (fps < target_fps * 0.5) {
-        pixel = SCG_PIXEL_RED;
+        color = SCG_COLOR_RED;
     }
 
-    scg_screen_draw_string(screen, buffer, 10, 10, 0, pixel);
+    scg_screen_draw_string(screen, buffer, 10, 10, 0, color);
 }
 
 //

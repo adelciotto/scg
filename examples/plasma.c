@@ -26,15 +26,14 @@ static void update_and_draw(scg_screen *screen, float32_t t) {
             val += sinf(sqrt(cx * cx + cy * cy + 1.0f) + t);
             val *= 0.5f;
 
-            float32_t r = sinf(val * PI) * 0.5f + 0.5f;
-            float32_t g = sinf(val * PI + 2.0f * PI * 0.33f) * 0.5f + 0.5f;
-            float32_t b = sinf(val * PI + 4.0f * PI * 0.33f) * 0.5f + 0.5f;
+            float32_t r = fabs(sinf(val * PI) * 0.5f + 0.5f);
+            float32_t g =
+                fabs(sinf(val * PI + 2.0f * PI * 0.33f) * 0.5f + 0.5f);
+            float32_t b =
+                fabs(sinf(val * PI + 4.0f * PI * 0.33f) * 0.5f + 0.5f);
+            scg_color color = scg_color_create(r, g, b);
 
-            scg_pixel pixel =
-                scg_pixel_create((uint8_t)scg_min_int(r * 255, 255),
-                                 (uint8_t)scg_min_int(g * 255, 255),
-                                 (uint8_t)scg_min_int(b * 255, 255));
-            scg_screen_set_pixel(screen, xi, yi, pixel);
+            scg_screen_set_pixel(screen, xi, yi, scg_color_to_pixel(color));
         }
     }
 }
@@ -58,7 +57,7 @@ int main(void) {
     scg_keyboard keyboard;
     scg_keyboard_create(&keyboard);
 
-    scg_pixel clear_color = SCG_PIXEL_BLACK;
+    scg_color clear_color = SCG_COLOR_BLACK;
     float32_t t = 0.0f;
 
     while (scg_screen_is_running(&screen)) {

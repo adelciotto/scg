@@ -374,7 +374,7 @@ scg_pixel scg_color_to_pixel(scg_color color) {
     pixel.color.r = (uint8_t)scg_min_float32(color.r * 255.0f, 255.0f);
     pixel.color.g = (uint8_t)scg_min_float32(color.g * 255.0f, 255.0f);
     pixel.color.b = (uint8_t)scg_min_float32(color.b * 255.0f, 255.0f);
-    pixel.color.a = 255;
+    pixel.color.a = (uint8_t)scg_min_float32(color.a * 255.0f, 255.0f);
 
     return pixel;
 }

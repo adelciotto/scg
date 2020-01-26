@@ -20,7 +20,7 @@
 //  - color conversions (hsv, hsl, etc)
 // drawing:
 //	- alpha blend modes
-//	- basic primitives (lines, rectangle, circle, etc)
+//	- basic circle
 //	- load and draw images
 //	- draw primitives/images with transforms (scale, rotate, etc)
 //	- linear gradients
@@ -47,6 +47,8 @@
 
 #define float32_t float
 #define float64_t double
+
+#define SCG_PI 3.1415926535f
 
 #define scg_log_error(...)                                                     \
     SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
@@ -95,6 +97,13 @@ extern void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1,
                                  int y1, scg_color color);
 extern void scg_screen_draw_rect(scg_screen *screen, int screen_x, int screen_y,
                                  int width, int height, scg_color color);
+// Maybe a temporary function...
+extern void scg_polygon_create_points(int num_points,
+                                      float32_t out[num_points][2],
+                                      float32_t radius);
+extern void scg_screen_draw_polygon(scg_screen *screen, float32_t x,
+                                    float32_t y, float32_t points[][2],
+                                    int num_points, scg_color color);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
                                    int y, int anchor_to_center,
                                    scg_color color);
@@ -287,7 +296,7 @@ int scg_min_int(int val, int min) {
 }
 
 //
-// scg_min_int_float32 implementation
+// scg_min_float32 implementation
 //
 
 float32_t scg_min_float32(float32_t val, float32_t min) {
@@ -559,6 +568,34 @@ void scg_screen_draw_rect(scg_screen *screen, int x, int y, int width,
     scg_screen_draw_line(screen, x, y, x, y + height, color);
     scg_screen_draw_line(screen, x, y + height, x + width, y + height, color);
     scg_screen_draw_line(screen, x + width, y, x + width, y + height, color);
+}
+
+//
+// scg_polygon_create_points implementation
+//
+
+void scg_polygon_create_points(int num_points, float32_t out[num_points][2],
+                               float32_t radius) {
+    float32_t theta = SCG_PI * 2.0f / (float32_t)num_points;
+
+    for (int i = 0; i < num_points; i++) {
+        out[i][0] = radius * cosf(theta * i);
+        out[i][1] = radius * sinf(theta * i);
+    }
+}
+
+//
+// scg_screen_draw_polygon implementation
+//
+
+void scg_screen_draw_polygon(scg_screen *screen, float32_t x, float32_t y,
+                             float32_t points[][2], int num_points,
+                             scg_color color) {
+    for (int i = 0; i < num_points; i++) {
+        scg_screen_draw_line(screen, x + points[i][0], y + points[i][1],
+                             x + points[(i + 1) % num_points][0],
+                             y + points[(i + 1) % num_points][1], color);
+    }
 }
 
 static void scg__draw_char(scg_screen *screen, const char *char_bitmap, int x,

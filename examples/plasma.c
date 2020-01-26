@@ -2,8 +2,7 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-#define PI 3.1415926535897932384626433832795
-#define PLASMA_SCALE PI * 2.0f
+#define PLASMA_SCALE SCG_PI * 2.0f
 #define PLASMA_SCALE_HALF PLASMA_SCALE * 0.5
 
 static void update_and_draw(scg_screen *screen, float32_t t) {
@@ -26,11 +25,11 @@ static void update_and_draw(scg_screen *screen, float32_t t) {
             val += sinf(sqrt(cx * cx + cy * cy + 1.0f) + t);
             val *= 0.5f;
 
-            float32_t r = fabs(sinf(val * PI) * 0.5f + 0.5f);
+            float32_t r = fabs(sinf(val * SCG_PI) * 0.5f + 0.5f);
             float32_t g =
-                fabs(sinf(val * PI + 2.0f * PI * 0.33f) * 0.5f + 0.5f);
+                fabs(sinf(val * SCG_PI + 2.0f * SCG_PI * 0.33f) * 0.5f + 0.5f);
             float32_t b =
-                fabs(sinf(val * PI + 4.0f * PI * 0.33f) * 0.5f + 0.5f);
+                fabs(sinf(val * SCG_PI + 4.0f * SCG_PI * 0.33f) * 0.5f + 0.5f);
             scg_color color = scg_color_create(r, g, b);
 
             scg_screen_set_pixel(screen, xi, yi, scg_color_to_pixel(color));

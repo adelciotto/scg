@@ -21,7 +21,7 @@
 // drawing:
 //	- alpha blend modes
 //	- basic circle
-//	- load and draw images
+//	- load and draw images (bmp)
 //	- draw primitives/images with transforms (scale, rotate, etc)
 //	- linear gradients
 // draw text:
@@ -32,8 +32,6 @@
 //  - gamepad
 // simple audio - maybe simplify api?
 //	- pause device
-// general
-//  - custom data for error messages
 // examples:
 // - basic (sine wave scroll text)
 
@@ -56,7 +54,6 @@
 #define scg_log_info(...) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
 
 typedef struct scg_return_status scg_return_status;
-extern const char *scg_return_status_get_error(scg_return_status return_status);
 
 extern void scg_swap_int(int *a, int *b);
 extern int scg_min_int(int val, int min);
@@ -160,6 +157,7 @@ enum scg_return_status_code {
     SCG_RETURN_STATUS_PIXEL_BUFFER_ALLOCATION_FAILURE,
     SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED,
     SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE,
+    SCG_RETURN_STATUS_LOAD_WAV_FAILURE,
     SCG_RETURN_STATUS_MAX_SOUNDS_REACHED
     // ...
 };
@@ -167,7 +165,7 @@ enum scg_return_status_code {
 struct scg_return_status {
     int is_error;
     enum scg_return_status_code code;
-    // TODO: maybe store some generic error related properties?
+    const char *error_msg;
 };
 
 extern const char scg__font8x8[128][8];
@@ -255,26 +253,25 @@ struct scg_keyboard {
 #define SCG_DEFAULT_REFRESH_RATE 60
 #define SCG_FONT_SIZE 8
 
-//
-// scg_return_status_get_error implementation
-//
+static scg_return_status
+scg__return_status_failure(enum scg_return_status_code code,
+                           const char *error_msg) {
+    return (scg_return_status){1, code, error_msg};
+}
 
-const char *scg_return_status_get_error(scg_return_status return_status) {
-    switch (return_status.code) {
-    case SCG_RETURN_STATUS_SDL_ERROR:
-        return SDL_GetError();
-    case SCG_RETURN_STATUS_PIXEL_BUFFER_ALLOCATION_FAILURE:
-        return "failed to allocate memory for pixel buffer";
-    case SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED:
-        return "AUDIO_F32 format not supported";
-    case SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE:
-        return "failed to allocate memory for sound buffer";
-    case SCG_RETURN_STATUS_MAX_SOUNDS_REACHED:
-        return "the maximum of 16 sounds has been reached";
-    case SCG_RETURN_STATUS_SUCCESS:
-    default:
-        return "";
-    }
+static scg_return_status scg__return_status_success(void) {
+    return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS, ""};
+}
+
+static const char *scg__sprintf(const char *fmt, ...) {
+    static char buffer[1024];
+    va_list v;
+
+    va_start(v, fmt);
+    vsnprintf(buffer, 1024, fmt, v);
+    va_end(v);
+
+    return buffer;
 }
 
 //
@@ -397,19 +394,22 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
                                     int width, int height, int scale,
                                     int fullscreen) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
+        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
+                                          SDL_GetError());
     }
 
     SDL_DisplayMode display_mode;
     if (SDL_GetDesktopDisplayMode(0, &display_mode) != 0) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
+        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
+                                          SDL_GetError());
     }
 
     SDL_Window *sdl_window = SDL_CreateWindow(
         title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width * scale,
         height * scale, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (sdl_window == NULL) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
+        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
+                                          SDL_GetError());
     }
 
     if (fullscreen) {
@@ -422,7 +422,8 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     SDL_Renderer *sdl_renderer = SDL_CreateRenderer(
         sdl_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (sdl_renderer == NULL) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
+        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
+                                          SDL_GetError());
     }
 
     SDL_RenderSetLogicalSize(sdl_renderer, width, height);
@@ -431,13 +432,17 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
         SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGBA32,
                           SDL_TEXTUREACCESS_STREAMING, width, height);
     if (sdl_texture == NULL) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
+        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
+                                          SDL_GetError());
     }
 
     uint32_t *pixels = (uint32_t *)calloc(width * height, sizeof(*pixels));
     if (pixels == NULL) {
-        return (scg_return_status){
-            1, SCG_RETURN_STATUS_PIXEL_BUFFER_ALLOCATION_FAILURE};
+        const char *error_msg = scg__sprintf(
+            "failed to allocate memory for pixel buffer. w=%d, h=%d, bytes=%d",
+            width, height, width * height * sizeof(*pixels));
+        return scg__return_status_failure(
+            SCG_RETURN_STATUS_PIXEL_BUFFER_ALLOCATION_FAILURE, error_msg);
     }
 
     screen->title = title;
@@ -455,7 +460,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     screen->pitch = screen->width * sizeof(uint32_t);
     screen->is_running = 1;
 
-    return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS};
+    return scg__return_status_success();
 }
 
 //
@@ -755,12 +760,15 @@ scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
     SDL_AudioDeviceID device_id = SDL_OpenAudioDevice(
         NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
     if (device_id == 0) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
+        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
+                                          SDL_GetError());
     }
 
     if (have.format != want.format) {
-        return (scg_return_status){
-            1, SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED};
+        const char *error_msg =
+            scg__sprintf("audio device does not support format S16LSB");
+        return scg__return_status_failure(
+            SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED, error_msg);
     }
 
     sound_device->device_id = device_id;
@@ -775,15 +783,18 @@ scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
     sound_device->buffer =
         (uint8_t *)calloc(sound_device->latency_sample_count, bytes_per_sample);
     if (sound_device->buffer == NULL) {
-        return (scg_return_status){
-            1, SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE};
+        const char *error_msg =
+            scg__sprintf("failed to allocate memory for sound buffer. bytes=%d",
+                         sound_device->latency_sample_count * bytes_per_sample);
+        return scg__return_status_failure(
+            SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE, error_msg);
     }
 
     sound_device->num_sounds = 0;
 
     SDL_PauseAudioDevice(device_id, 0);
 
-    return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS};
+    return scg__return_status_success();
 }
 
 //
@@ -806,7 +817,8 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
                                             scg_sound *sound,
                                             const char *filepath, int loop) {
     if (sound_device->num_sounds == SCG_MAX_SOUNDS) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_MAX_SOUNDS_REACHED};
+        return scg__return_status_failure(SCG_RETURN_STATUS_MAX_SOUNDS_REACHED,
+                                          "maximum sounds reached");
     }
 
     SDL_AudioSpec spec;
@@ -814,7 +826,8 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
     uint8_t *buffer;
 
     if (SDL_LoadWAV(filepath, &spec, &buffer, &length) == NULL) {
-        return (scg_return_status){1, SCG_RETURN_STATUS_SDL_ERROR};
+        return scg__return_status_failure(SCG_RETURN_STATUS_LOAD_WAV_FAILURE,
+                                          SDL_GetError());
     }
 
     sound->sdl_spec = spec;
@@ -827,7 +840,7 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
 
     sound_device->sounds[sound_device->num_sounds++] = sound;
 
-    return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS};
+    return scg__return_status_success();
 }
 
 //

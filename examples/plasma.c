@@ -47,8 +47,7 @@ int main(void) {
     scg_return_status return_status =
         scg_screen_create(&screen, "plasma", width, height, scale, fullscreen);
     if (return_status.is_error) {
-        scg_log_error("failed to create screen, %s",
-                      scg_return_status_get_error(return_status));
+        scg_log_error("failed to create screen, %s", return_status.error_msg);
         return -1;
     }
     scg_screen_log_info(&screen);

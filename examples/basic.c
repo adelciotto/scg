@@ -29,8 +29,7 @@ int main(void) {
     scg_return_status return_status =
         scg_screen_create(&screen, "basic", width, height, scale, fullscreen);
     if (return_status.is_error) {
-        scg_log_error("failed to create screen, %s",
-                      scg_return_status_get_error(return_status));
+        scg_log_error("failed to create screen, %s", return_status.error_msg);
         return -1;
     }
     scg_screen_log_info(&screen);
@@ -43,7 +42,7 @@ int main(void) {
         scg_sound_device_create(&sound_device, screen.target_frames_per_sec);
     if (return_status.is_error) {
         scg_log_error("failed to open sound device, %s",
-                      scg_return_status_get_error(return_status));
+                      return_status.error_msg);
         return -1;
     }
     scg_sound_device_log_info(&sound_device);
@@ -52,8 +51,7 @@ int main(void) {
     return_status = scg_sound_create_from_wav(
         &sound_device, &music, "assets/arcade-music-loop-joshuaempyre.wav", 1);
     if (return_status.is_error) {
-        scg_log_error("failed to create sound, %s",
-                      scg_return_status_get_error(return_status));
+        scg_log_error("failed to create sound, %s", return_status.error_msg);
         return -1;
     }
 

@@ -10,7 +10,7 @@ else
 endif
 
 .PHONY: default
-default: basic plasma
+default: basic plasma image
 
 basic: examples/basic.c scg.h
 	$(CC) examples/basic.c -o basic $(CFLAGS) $(LDFLAGS) $(INCLUDES)
@@ -18,12 +18,15 @@ basic: examples/basic.c scg.h
 plasma: examples/plasma.c scg.h
 	$(CC) examples/plasma.c -o plasma $(CFLAGS) $(LDFLAGS) $(INCLUDES)
 
+image: examples/image.c scg.h
+	$(CC) examples/image.c -o image $(CFLAGS) $(LDFLAGS) $(INCLUDES)
+
 .PHONY: format
 format:
 	clang-format --verbose -i -style=file examples/*.c scg.h
 
 .PHONY: clean
 clean:
-	rm -f basic plasma
+	rm -f basic plasma image
 	rm -f **/*.o
 	rm -rf *.dSYM

@@ -39,9 +39,7 @@
 #define INCLUDE_SCG_H
 
 #include <SDL2/SDL.h>
-#include <math.h>
 #include <stdint.h>
-#include <stdlib.h>
 
 #define float32_t float
 #define float64_t double
@@ -81,6 +79,12 @@ extern scg_pixel scg_color_to_pixel(scg_color color);
 #define SCG_COLOR_BLUE scg_color_create(0.0f, 0.0f, 1.0f)
 #define SCG_COLOR_YELLOW scg_color_create(1.0f, 1.0f, 0.0f)
 
+typedef struct scg_image scg_image;
+
+extern scg_return_status scg_image_create_from_bmp(scg_image *image,
+                                                   const char *filepath);
+extern void scg_image_destroy(scg_image *image);
+
 typedef struct scg_screen scg_screen;
 
 scg_return_status scg_screen_create(scg_screen *screen, const char *title,
@@ -101,6 +105,8 @@ extern void scg_polygon_create_points(int num_points,
 extern void scg_screen_draw_polygon(scg_screen *screen, float32_t x,
                                     float32_t y, float32_t points[][2],
                                     int num_points, scg_color color);
+extern void scg_screen_draw_image(scg_screen *screen, int x, int y,
+                                  scg_image *image);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
                                    int y, int anchor_to_center,
                                    scg_color color);
@@ -151,24 +157,10 @@ extern void scg_keyboard_update(scg_keyboard *keyboard);
 
 #define SCG_MAX_SOUNDS 16 // TODO: use linked list for sounds?
 
-enum scg_return_status_code {
-    SCG_RETURN_STATUS_SUCCESS,
-    SCG_RETURN_STATUS_SDL_ERROR,
-    SCG_RETURN_STATUS_PIXEL_BUFFER_ALLOCATION_FAILURE,
-    SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED,
-    SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE,
-    SCG_RETURN_STATUS_LOAD_WAV_FAILURE,
-    SCG_RETURN_STATUS_MAX_SOUNDS_REACHED
-    // ...
-};
-
 struct scg_return_status {
     int is_error;
-    enum scg_return_status_code code;
     const char *error_msg;
 };
-
-extern const char scg__font8x8[128][8];
 
 union scg_pixel {
     uint32_t packed;
@@ -185,6 +177,12 @@ struct scg_color {
     float32_t g;
     float32_t b;
     float32_t a;
+};
+
+struct scg_image {
+    int width;
+    int height;
+    uint32_t *pixels;
 };
 
 struct scg_screen {
@@ -250,17 +248,20 @@ struct scg_keyboard {
 
 #ifdef SCG_IMPLEMENTATION
 
+#include <math.h>
+#include <stdlib.h>
+
 #define SCG_DEFAULT_REFRESH_RATE 60
 #define SCG_FONT_SIZE 8
 
-static scg_return_status
-scg__return_status_failure(enum scg_return_status_code code,
-                           const char *error_msg) {
-    return (scg_return_status){1, code, error_msg};
+extern const char scg__font8x8[128][SCG_FONT_SIZE];
+
+static scg_return_status scg__return_status_failure(const char *error_msg) {
+    return (scg_return_status){1, error_msg};
 }
 
 static scg_return_status scg__return_status_success(void) {
-    return (scg_return_status){0, SCG_RETURN_STATUS_SUCCESS, ""};
+    return (scg_return_status){0, ""};
 }
 
 static const char *scg__sprintf(const char *fmt, ...) {
@@ -376,6 +377,125 @@ scg_pixel scg_color_to_pixel(scg_color color) {
     return pixel;
 }
 
+static unsigned char *scg__read_file(const char *filepath) {
+    FILE *file = fopen(filepath, "rb");
+    if (file == NULL) {
+        return NULL;
+    }
+
+    fseek(file, 0, SEEK_END);
+    uint64_t size = ftell(file);
+    rewind(file);
+
+    unsigned char *file_contents = malloc(size);
+    if (file_contents == NULL) {
+        return NULL;
+    }
+
+    size_t bytes_read = fread(file_contents, 1, size, file);
+    if (bytes_read != size) {
+        return NULL;
+    }
+
+    fclose(file);
+
+    return file_contents;
+}
+
+static int map_row_col_to_index(int col, int row, int num_cols) {
+    return row * num_cols + col;
+}
+
+#pragma pack(push, 1)
+typedef struct scg__bmp_header {
+    uint16_t id;
+    uint32_t file_size;
+    uint16_t reserved_1;
+    uint16_t reserved_2;
+    uint32_t pixel_array_offset;
+    uint32_t size;
+    int32_t width;
+    int32_t height;
+    uint16_t planes;
+    uint16_t bits_per_pixel;
+    uint32_t compression;
+    uint32_t size_of_bitmap;
+    int32_t horizontal_resolution;
+    int32_t vertical_resolution;
+    uint32_t colors_used;
+    uint32_t colors_important;
+
+    uint32_t red_mask;
+    uint32_t green_mask;
+    uint32_t blue_mask;
+} scg__bmp_header;
+#pragma pack(pop)
+
+//
+// scg_image_create_from_bmp implementation
+//
+// TODO: handle color masks, handle 24 bit
+
+scg_return_status scg_image_create_from_bmp(scg_image *image,
+                                            const char *filepath) {
+    unsigned char *file_contents = scg__read_file(filepath);
+    if (file_contents == NULL) {
+        const char *error_msg =
+            scg__sprintf("failed to read image file. filepath=%s", filepath);
+        return scg__return_status_failure(error_msg);
+    }
+
+    scg__bmp_header *header = (scg__bmp_header *)file_contents;
+    int width = header->width;
+    int height = header->height;
+
+    if (height <= 0) {
+        return scg__return_status_failure(
+            "bmp image height must be greater than 0");
+    }
+    if (header->compression != 0) {
+        return scg__return_status_failure(
+            "bmp image must use BI_RGB (no) compression");
+    }
+    if (header->size_of_bitmap == 0) {
+        return scg__return_status_failure(
+            "bmp image header must container size of image data in bytes");
+    }
+
+    unsigned char *pixels = file_contents + header->pixel_array_offset;
+    uint32_t *pixels_copy =
+        malloc(width * height * sizeof(uint32_t)); // error check
+
+    for (int y = 0; y < height; y++) {
+        for (int x = 0; x < width; x++) {
+            int i = (x + y * width) * 4;
+
+            unsigned char pixel_data[3] = {255, 0, 255}; // Default to magenta
+            memcpy(pixel_data, pixels + i, 3);
+
+            scg_pixel pixel =
+                scg_pixel_create(pixel_data[0], pixel_data[1], pixel_data[2]);
+            pixels_copy[x + (height - 1 - y) * width] = pixel.packed;
+        }
+    }
+
+    image->width = width;
+    image->height = height;
+    image->pixels = pixels_copy;
+
+    free(file_contents);
+
+    return scg__return_status_success();
+}
+
+//
+// scg_image_destroy implementation
+//
+
+void scg_image_destroy(scg_image *image) {
+    free(image->pixels);
+}
+
 static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
     int result = display_mode.refresh_rate;
 
@@ -394,22 +514,19 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
                                     int width, int height, int scale,
                                     int fullscreen) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
-        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
-                                          SDL_GetError());
+        return scg__return_status_failure(SDL_GetError());
     }
 
     SDL_DisplayMode display_mode;
     if (SDL_GetDesktopDisplayMode(0, &display_mode) != 0) {
-        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
-                                          SDL_GetError());
+        return scg__return_status_failure(SDL_GetError());
     }
 
     SDL_Window *sdl_window = SDL_CreateWindow(
         title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, width * scale,
         height * scale, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
     if (sdl_window == NULL) {
-        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
-                                          SDL_GetError());
+        return scg__return_status_failure(SDL_GetError());
     }
 
     if (fullscreen) {
@@ -422,8 +539,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     SDL_Renderer *sdl_renderer = SDL_CreateRenderer(
         sdl_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (sdl_renderer == NULL) {
-        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
-                                          SDL_GetError());
+        return scg__return_status_failure(SDL_GetError());
     }
 
     SDL_RenderSetLogicalSize(sdl_renderer, width, height);
@@ -432,8 +548,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
         SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGBA32,
                           SDL_TEXTUREACCESS_STREAMING, width, height);
     if (sdl_texture == NULL) {
-        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
-                                          SDL_GetError());
+        return scg__return_status_failure(SDL_GetError());
     }
 
     uint32_t *pixels = (uint32_t *)calloc(width * height, sizeof(*pixels));
@@ -441,8 +556,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
         const char *error_msg = scg__sprintf(
             "failed to allocate memory for pixel buffer. w=%d, h=%d, bytes=%d",
             width, height, width * height * sizeof(*pixels));
-        return scg__return_status_failure(
-            SCG_RETURN_STATUS_PIXEL_BUFFER_ALLOCATION_FAILURE, error_msg);
+        return scg__return_status_failure(error_msg);
     }
 
     screen->title = title;
@@ -486,7 +600,7 @@ int scg_screen_is_running(scg_screen *screen) {
 
 void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
     if (x >= 0 && x < screen->width && y >= 0 && y < screen->height) {
-        int index = (y * screen->width) + x;
+        int index = map_row_col_to_index(x, y, screen->width);
         screen->pixels[index] = pixel.packed;
     }
 }
@@ -600,6 +714,25 @@ void scg_screen_draw_polygon(scg_screen *screen, float32_t x, float32_t y,
         scg_screen_draw_line(screen, x + points[i][0], y + points[i][1],
                              x + points[(i + 1) % num_points][0],
                              y + points[(i + 1) % num_points][1], color);
+    }
+}
+
+//
+// scg_screen_draw_image implementation
+//
+
+void scg_screen_draw_image(scg_screen *screen, int x, int y, scg_image *image) {
+    int image_width = image->width;
+    int image_height = image->height;
+
+    for (int i = 0; i < image_height; i++) {
+        for (int j = 0; j < image_width; j++) {
+            scg_pixel pixel;
+            pixel.packed =
+                image->pixels[map_row_col_to_index(j, i, image_width)];
+
+            scg_screen_set_pixel(screen, x + j, y + i, pixel);
+        }
     }
 }
 
@@ -750,7 +883,7 @@ scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
     int channels = 2;
     size_t bytes_per_sample = sizeof(int16_t) * channels;
 
-    SDL_memset(&want, 0, sizeof(want));
+    memset(&want, 0, sizeof(want));
     want.freq = 48000;
     want.format = AUDIO_S16LSB;
     want.channels = channels;
@@ -760,15 +893,12 @@ scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
     SDL_AudioDeviceID device_id = SDL_OpenAudioDevice(
         NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
     if (device_id == 0) {
-        return scg__return_status_failure(SCG_RETURN_STATUS_SDL_ERROR,
-                                          SDL_GetError());
+        return scg__return_status_failure(SDL_GetError());
     }
 
     if (have.format != want.format) {
-        const char *error_msg =
-            scg__sprintf("audio device does not support format S16LSB");
         return scg__return_status_failure(
-            SCG_RETURN_STATUS_SDL_AUDIO_FORMAT_NOT_SUPPORTED, error_msg);
+            "audio device does not support format S16LSB");
     }
 
     sound_device->device_id = device_id;
@@ -786,8 +916,7 @@ scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
         const char *error_msg =
             scg__sprintf("failed to allocate memory for sound buffer. bytes=%d",
                          sound_device->latency_sample_count * bytes_per_sample);
-        return scg__return_status_failure(
-            SCG_RETURN_STATUS_SOUND_BUFFER_ALLOCATION_FAILURE, error_msg);
+        return scg__return_status_failure(error_msg);
     }
 
     sound_device->num_sounds = 0;
@@ -817,8 +946,7 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
                                             scg_sound *sound,
                                             const char *filepath, int loop) {
     if (sound_device->num_sounds == SCG_MAX_SOUNDS) {
-        return scg__return_status_failure(SCG_RETURN_STATUS_MAX_SOUNDS_REACHED,
-                                          "maximum sounds reached");
+        return scg__return_status_failure("maximum sounds reached");
     }
 
     SDL_AudioSpec spec;
@@ -826,8 +954,7 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
     uint8_t *buffer;
 
     if (SDL_LoadWAV(filepath, &spec, &buffer, &length) == NULL) {
-        return scg__return_status_failure(SCG_RETURN_STATUS_LOAD_WAV_FAILURE,
-                                          SDL_GetError());
+        return scg__return_status_failure(SDL_GetError());
     }
 
     sound->sdl_spec = spec;
@@ -858,7 +985,7 @@ void scg_sound_play(scg_sound *sound) {
 //
 
 void scg_sound_device_update(scg_sound_device *sound_device) {
-    SDL_memset(sound_device->buffer, 0, sound_device->buffer_size);
+    memset(sound_device->buffer, 0, sound_device->buffer_size);
 
     uint32_t target_queue_bytes = sound_device->buffer_size;
     uint32_t bytes_to_write =
@@ -912,8 +1039,8 @@ void scg_sound_device_destroy(scg_sound_device *sound_device) {
 
 void scg_keyboard_create(scg_keyboard *keyboard) {
     keyboard->current_key_states = SDL_GetKeyboardState(NULL);
-    SDL_memset(keyboard->previous_key_states, 0,
-               sizeof(uint8_t) * SDL_NUM_SCANCODES);
+    memset(keyboard->previous_key_states, 0,
+           sizeof(uint8_t) * SDL_NUM_SCANCODES);
 }
 
 //
@@ -946,8 +1073,8 @@ int scg_keyboard_is_key_triggered(scg_keyboard *keyboard, scg_key_code key) {
 //
 
 void scg_keyboard_update(scg_keyboard *keyboard) {
-    SDL_memcpy(keyboard->previous_key_states, keyboard->current_key_states,
-               sizeof(uint8_t) * SDL_NUM_SCANCODES);
+    memcpy(keyboard->previous_key_states, keyboard->current_key_states,
+           sizeof(uint8_t) * SDL_NUM_SCANCODES);
 }
 
 const char scg__font8x8[128][8] = {
@@ -1081,4 +1208,4 @@ const char scg__font8x8[128][8] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}        // U+007F
 };
 
-#endif
+#endif // SCG_IMPLEMENTATION

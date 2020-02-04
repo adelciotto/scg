@@ -6,7 +6,7 @@ DEBUG ?= 0
 ifeq ($(DEBUG), 1)
 	CFLAGS += -g -DDEBUG
 else
-	CFLAGS += -O3 -DNDEBUG
+	CFLAGS += -O2 -DNDEBUG
 endif
 
 .PHONY: default

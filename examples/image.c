@@ -23,7 +23,7 @@ int main(void) {
     scg_keyboard_create(&keyboard);
 
     scg_image image;
-    return_status = scg_image_create_from_bmp(&image, "assets/rgb32.bmp");
+    return_status = scg_image_create_from_tga(&image, "assets/lenna.tga");
     if (return_status.is_error) {
         scg_log_error("failed to create image, %s", return_status.error_msg);
         return -1;
@@ -38,8 +38,7 @@ int main(void) {
         scg_keyboard_update(&keyboard);
 
         scg_screen_clear(&screen, clear_color);
-        scg_screen_draw_image(&screen, screen.width / 2 - image.width / 2,
-                              screen.height / 2 - image.height / 2, &image);
+        scg_screen_draw_image(&screen, 0, 0, &image);
         scg_screen_draw_fps(&screen);
 
         scg_screen_present(&screen);

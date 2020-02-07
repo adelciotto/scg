@@ -19,9 +19,9 @@
 // color:
 //  - color conversions (hsv, hsl, etc)
 // drawing:
+//  - tga images with alpha transparency
 //	- alpha blend modes
 //	- basic circle
-//	- load and draw images (bmp)
 //	- draw primitives/images with transforms (scale, rotate, etc)
 //	- linear gradients
 // draw text:
@@ -81,7 +81,7 @@ extern scg_pixel scg_color_to_pixel(scg_color color);
 
 typedef struct scg_image scg_image;
 
-extern scg_return_status scg_image_create_from_bmp(scg_image *image,
+extern scg_return_status scg_image_create_from_tga(scg_image *image,
                                                    const char *filepath);
 extern void scg_image_destroy(scg_image *image);
 
@@ -402,86 +402,100 @@ static unsigned char *scg__read_file(const char *filepath) {
     return file_contents;
 }
 
-static int map_row_col_to_index(int col, int row, int num_cols) {
+static int scg__map_row_col_to_index(int col, int row, int num_cols) {
     return row * num_cols + col;
 }
 
 #pragma pack(push, 1)
-typedef struct scg__bmp_header {
-    uint16_t id;
-    uint32_t file_size;
-    uint16_t reserved_1;
-    uint16_t reserved_2;
-    uint32_t pixel_array_offset;
-    uint32_t size;
-    int32_t width;
-    int32_t height;
-    uint16_t planes;
-    uint16_t bits_per_pixel;
-    uint32_t compression;
-    uint32_t size_of_bitmap;
-    int32_t horizontal_resolution;
-    int32_t vertical_resolution;
-    uint32_t colors_used;
-    uint32_t colors_important;
-
-    uint32_t red_mask;
-    uint32_t green_mask;
-    uint32_t blue_mask;
-} scg__bmp_header;
+typedef struct scg__tga_header {
+    uint8_t id_len;
+    uint8_t color_map_type;
+    uint8_t image_type_code;
+    uint16_t color_map_origin;
+    uint16_t color_map_length;
+    uint8_t color_map_num_bits;
+    uint16_t x_origin;
+    uint16_t y_origin;
+    uint16_t width;
+    uint16_t height;
+    uint8_t pixel_size;
+    uint8_t descriptor_byte;
+} scg__tga_header;
 #pragma pack(pop)
 
 //
-// scg_image_create_from_bmp implementation
+// scg_image_create_from_tga implementation
 //
-// TODO: handle color masks, handle 24 bit
 
-scg_return_status scg_image_create_from_bmp(scg_image *image,
+scg_return_status scg_image_create_from_tga(scg_image *image,
                                             const char *filepath) {
     unsigned char *file_contents = scg__read_file(filepath);
     if (file_contents == NULL) {
         const char *error_msg =
-            scg__sprintf("failed to read image file. filepath=%s", filepath);
+            scg__sprintf("Failed to read %s image file", filepath);
         return scg__return_status_failure(error_msg);
     }
 
-    scg__bmp_header *header = (scg__bmp_header *)file_contents;
-    int width = header->width;
-    int height = header->height;
+    scg__tga_header *header = (scg__tga_header *)file_contents;
 
-    if (height <= 0) {
-        return scg__return_status_failure(
-            "bmp image height must be greater than 0");
+    if (header->color_map_type != 0) {
+        const char *error_msg =
+            scg__sprintf("Failed to parse %s image file. The color map type "
+                         "must be 0, got %u",
+                         filepath, header->color_map_type);
+        scg__return_status_failure(error_msg);
     }
-    if (header->compression != 0) {
-        return scg__return_status_failure(
-            "bmp image must use BI_RGB (no) compression");
+    if (header->image_type_code != 2) {
+        const char *error_msg =
+            scg__sprintf("Failed to parse %s image file. The image type code "
+                         "must be 2, got %u",
+                         filepath, header->image_type_code);
+        scg__return_status_failure(error_msg);
     }
-    if (header->size_of_bitmap == 0) {
-        return scg__return_status_failure(
-            "bmp image header must container size of image data in bytes");
+    if (header->pixel_size != 24 && header->pixel_size != 32) {
+        const char *error_msg =
+            scg__sprintf("Failed to parse %s image file. The pixel size must "
+                         "be 24 or 32, got %u",
+                         filepath, header->pixel_size);
+        scg__return_status_failure(error_msg);
     }
 
-    unsigned char *pixels = file_contents + header->pixel_array_offset;
-    uint32_t *pixels_copy =
-        malloc(width * height * sizeof(uint32_t)); // error check
+    // Read past the image ID field and the color map data to the pixels.
+    // The color map data should always be empty for the subset of tga images we
+    // support.
+    unsigned char *pixels =
+        file_contents + sizeof(scg__tga_header) + header->id_len;
+    uint32_t *image_pixels =
+        malloc(header->width * header->height * sizeof(uint32_t));
+    if (image_pixels == NULL) {
+        const char *error_msg =
+            scg__sprintf("Failed to parse %s image file. Could not allocate "
+                         "memory for pixels",
+                         filepath);
+        scg__return_status_failure(error_msg);
+    }
 
-    for (int y = 0; y < height; y++) {
-        for (int x = 0; x < width; x++) {
-            int i = (x + y * width) * 4;
+    const int components = header->pixel_size / 8;
 
-            unsigned char pixel_data[3] = {255, 0, 255}; // Default to magenta
-            memcpy(pixel_data, pixels + i, 3);
+    for (int y = 0; y < header->height; y++) {
+        for (int x = 0; x < header->width; x++) {
+            int src_index = scg__map_row_col_to_index(x, y, header->width);
 
+            // TODO: Handle 32 bit pixels with alpha component.
+            int byte_index = src_index * components;
             scg_pixel pixel =
-                scg_pixel_create(pixel_data[0], pixel_data[1], pixel_data[2]);
-            pixels_copy[x + (height - 1 - y) * width] = pixel.packed;
+                scg_pixel_create(pixels[byte_index + 2], pixels[byte_index + 1],
+                                 pixels[byte_index]);
+
+            int dest_index = scg__map_row_col_to_index(
+                x, header->height - 1 - y, header->width);
+            image_pixels[dest_index] = pixel.packed;
         }
     }
 
-    image->width = width;
-    image->height = height;
-    image->pixels = pixels_copy;
+    image->width = header->width;
+    image->height = header->height;
+    image->pixels = image_pixels;
 
     free(file_contents);
 
@@ -554,7 +568,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     uint32_t *pixels = (uint32_t *)calloc(width * height, sizeof(*pixels));
     if (pixels == NULL) {
         const char *error_msg = scg__sprintf(
-            "failed to allocate memory for pixel buffer. w=%d, h=%d, bytes=%d",
+            "Failed to allocate memory for pixel buffer. w=%d, h=%d, bytes=%d",
             width, height, width * height * sizeof(*pixels));
         return scg__return_status_failure(error_msg);
     }
@@ -600,7 +614,7 @@ int scg_screen_is_running(scg_screen *screen) {
 
 void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
     if (x >= 0 && x < screen->width && y >= 0 && y < screen->height) {
-        int index = map_row_col_to_index(x, y, screen->width);
+        int index = scg__map_row_col_to_index(x, y, screen->width);
         screen->pixels[index] = pixel.packed;
     }
 }
@@ -729,7 +743,7 @@ void scg_screen_draw_image(scg_screen *screen, int x, int y, scg_image *image) {
         for (int j = 0; j < image_width; j++) {
             scg_pixel pixel;
             pixel.packed =
-                image->pixels[map_row_col_to_index(j, i, image_width)];
+                image->pixels[scg__map_row_col_to_index(j, i, image_width)];
 
             scg_screen_set_pixel(screen, x + j, y + i, pixel);
         }
@@ -898,7 +912,7 @@ scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
 
     if (have.format != want.format) {
         return scg__return_status_failure(
-            "audio device does not support format S16LSB");
+            "Audio device does not support format S16LSB");
     }
 
     sound_device->device_id = device_id;
@@ -914,7 +928,7 @@ scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
         (uint8_t *)calloc(sound_device->latency_sample_count, bytes_per_sample);
     if (sound_device->buffer == NULL) {
         const char *error_msg =
-            scg__sprintf("failed to allocate memory for sound buffer. bytes=%d",
+            scg__sprintf("Failed to allocate memory for sound buffer. bytes=%d",
                          sound_device->latency_sample_count * bytes_per_sample);
         return scg__return_status_failure(error_msg);
     }
@@ -946,7 +960,7 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
                                             scg_sound *sound,
                                             const char *filepath, int loop) {
     if (sound_device->num_sounds == SCG_MAX_SOUNDS) {
-        return scg__return_status_failure("maximum sounds reached");
+        return scg__return_status_failure("Maximum sounds reached");
     }
 
     SDL_AudioSpec spec;

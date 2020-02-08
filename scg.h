@@ -19,8 +19,6 @@
 // color:
 //  - color conversions (hsv, hsl, etc)
 // drawing:
-//  - tga images with alpha transparency
-//	- alpha blend modes
 //	- basic circle
 //	- draw primitives/images with transforms (scale, rotate, etc)
 //	- linear gradients
@@ -66,6 +64,7 @@ extern float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start);
 typedef union scg_pixel scg_pixel;
 
 extern scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b);
+extern scg_pixel scg_pixel_create_from_uint32(uint32_t color);
 
 typedef struct scg_color scg_color;
 
@@ -78,6 +77,7 @@ extern scg_pixel scg_color_to_pixel(scg_color color);
 #define SCG_COLOR_GREEN scg_color_create(0.0f, 1.0f, 0.0f)
 #define SCG_COLOR_BLUE scg_color_create(0.0f, 0.0f, 1.0f)
 #define SCG_COLOR_YELLOW scg_color_create(1.0f, 1.0f, 0.0f)
+#define SCG_COLOR_95_GREEN scg_color_create(0.0f, 0.5f, 0.5f);
 
 typedef struct scg_image scg_image;
 
@@ -85,12 +85,20 @@ extern scg_return_status scg_image_create_from_tga(scg_image *image,
                                                    const char *filepath);
 extern void scg_image_destroy(scg_image *image);
 
+typedef enum scg_blend_mode {
+    SCG_BLEND_MODE_NONE,
+    SCG_BLEND_MODE_MASK,
+    SCG_BLEND_MODE_ALPHA
+} scg_blend_mode;
+
 typedef struct scg_screen scg_screen;
 
 scg_return_status scg_screen_create(scg_screen *screen, const char *title,
                                     int width, int height, int scale,
                                     int fullscreen);
 extern int scg_screen_is_running(scg_screen *screen);
+extern void scg_screen_set_blend_mode(scg_screen *screen,
+                                      scg_blend_mode blend_mode);
 extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
                                  scg_pixel pixel);
 extern void scg_screen_clear(scg_screen *screen, scg_color color);
@@ -190,6 +198,7 @@ struct scg_screen {
     int width;
     int height;
     int scale;
+    scg_blend_mode blend_mode;
 
     int target_frames_per_sec;
     float64_t target_time_per_frame_secs;
@@ -346,12 +355,24 @@ float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
 //
 // scg_pixel_create implementation
 //
+
 scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b) {
     scg_pixel pixel;
     pixel.color.r = r;
     pixel.color.g = g;
     pixel.color.b = b;
     pixel.color.a = 255;
+
+    return pixel;
+}
+
+//
+// scg_pixel_create_from_uint32 implementation
+//
+
+scg_pixel scg_pixel_create_from_uint32(uint32_t color) {
+    scg_pixel pixel;
+    pixel.packed = color;
 
     return pixel;
 }
@@ -481,11 +502,13 @@ scg_return_status scg_image_create_from_tga(scg_image *image,
         for (int x = 0; x < header->width; x++) {
             int src_index = scg__map_row_col_to_index(x, y, header->width);
 
-            // TODO: Handle 32 bit pixels with alpha component.
             int byte_index = src_index * components;
             scg_pixel pixel =
                 scg_pixel_create(pixels[byte_index + 2], pixels[byte_index + 1],
                                  pixels[byte_index]);
+            if (components == 4) {
+                pixel.color.a = pixels[byte_index + 3];
+            }
 
             int dest_index = scg__map_row_col_to_index(
                 x, header->height - 1 - y, header->width);
@@ -586,6 +609,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     screen->sdl_texture = sdl_texture;
     screen->pixels = pixels;
     screen->pitch = screen->width * sizeof(uint32_t);
+    screen->blend_mode = SCG_BLEND_MODE_NONE;
     screen->is_running = 1;
 
     return scg__return_status_success();
@@ -609,13 +633,45 @@ int scg_screen_is_running(scg_screen *screen) {
 }
 
 //
+// scg_screen_set_blend_mode implementation
+//
+
+void scg_screen_set_blend_mode(scg_screen *screen, scg_blend_mode blend_mode) {
+    screen->blend_mode = blend_mode;
+}
+
+//
 // scg_screen_set_pixel implementation
 //
 
 void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
     if (x >= 0 && x < screen->width && y >= 0 && y < screen->height) {
         int index = scg__map_row_col_to_index(x, y, screen->width);
-        screen->pixels[index] = pixel.packed;
+
+        if (screen->blend_mode == SCG_BLEND_MODE_MASK) {
+            if (pixel.color.a == 255) {
+                screen->pixels[index] = pixel.packed;
+            }
+        }
+
+        if (screen->blend_mode == SCG_BLEND_MODE_ALPHA) {
+            scg_pixel d = scg_pixel_create_from_uint32(screen->pixels[index]);
+            float32_t a = (float32_t)(pixel.color.a / 255.0f) * 1.0f;
+            float32_t c = 1.0f - a;
+            float32_t r =
+                a * (float32_t)pixel.color.r + c * (float32_t)d.color.r;
+            float32_t g =
+                a * (float32_t)pixel.color.g + c * (float32_t)d.color.g;
+            float32_t b =
+                a * (float32_t)pixel.color.b + c * (float32_t)d.color.b;
+
+            screen->pixels[index] =
+                scg_pixel_create((uint8_t)r, (uint8_t)g, (uint8_t)b).packed;
+        }
+
+        if (screen->blend_mode == SCG_BLEND_MODE_NONE) {
+            screen->pixels[index] = pixel.packed;
+        }
     }
 }
 
@@ -793,7 +849,7 @@ void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
         scg__draw_char(screen, scg__font8x8[char_code], current_x, current_y,
                        pixel);
 
-        current_x += SCG_FONT_SIZE;
+        current_x += SCG_FONT_SIZE + 1;
     }
 }
 

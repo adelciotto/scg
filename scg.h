@@ -21,6 +21,8 @@
 // drawing:
 //	- basic circle
 //	- draw primitives/images with transforms (scale, rotate, etc)
+//		- provide with_transform functions for drawing images and
+//polygons
 //	- linear gradients
 // draw text:
 //  - multiline
@@ -102,19 +104,21 @@ extern void scg_screen_set_blend_mode(scg_screen *screen,
 extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
                                  scg_pixel pixel);
 extern void scg_screen_clear(scg_screen *screen, scg_color color);
-extern void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1,
-                                 int y1, scg_color color);
-extern void scg_screen_draw_rect(scg_screen *screen, int screen_x, int screen_y,
-                                 int width, int height, scg_color color);
+extern void scg_screen_draw_line(scg_screen *screen, float32_t px0,
+                                 float32_t py0, float32_t px1, float32_t py1,
+                                 scg_color color);
+extern void scg_screen_draw_rect(scg_screen *screen, float32_t px, float32_t py,
+                                 float32_t width, float32_t height,
+                                 scg_color color);
 // Maybe a temporary function...
 extern void scg_polygon_create_points(int num_points,
                                       float32_t out[num_points][2],
                                       float32_t radius);
-extern void scg_screen_draw_polygon(scg_screen *screen, float32_t x,
-                                    float32_t y, float32_t points[][2],
+extern void scg_screen_draw_polygon(scg_screen *screen, float32_t px,
+                                    float32_t py, float32_t points[][2],
                                     int num_points, scg_color color);
-extern void scg_screen_draw_image(scg_screen *screen, int x, int y,
-                                  scg_image *image);
+extern void scg_screen_draw_image(scg_screen *screen, float32_t px,
+                                  float32_t py, scg_image *image);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
                                    int y, int anchor_to_center,
                                    scg_color color);
@@ -680,9 +684,11 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
 //
 
 void scg_screen_clear(scg_screen *screen, scg_color color) {
+    scg_pixel pixel = scg_color_to_pixel(color);
+
     for (int y = 0; y < screen->height; y++) {
         for (int x = 0; x < screen->width; x++) {
-            scg_screen_set_pixel(screen, x, y, scg_color_to_pixel(color));
+            scg_screen_set_pixel(screen, x, y, pixel);
         }
     }
 }
@@ -691,8 +697,13 @@ void scg_screen_clear(scg_screen *screen, scg_color color) {
 // scg_screen_draw_line implementation
 //
 
-void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1, int y1,
-                          scg_color color) {
+void scg_screen_draw_line(scg_screen *screen, float32_t px0, float32_t py0,
+                          float32_t px1, float32_t py1, scg_color color) {
+    int x0 = (int)px0;
+    int y0 = (int)py0;
+    int x1 = (int)px1;
+    int y1 = (int)py1;
+
     scg_pixel pixel = scg_color_to_pixel(color);
     int dx = abs(x1 - x0);
     int dy = abs(y1 - y0);
@@ -751,12 +762,14 @@ void scg_screen_draw_line(scg_screen *screen, int x0, int y0, int x1, int y1,
 // scg_screen_draw_rect_implementation
 //
 
-void scg_screen_draw_rect(scg_screen *screen, int x, int y, int width,
-                          int height, scg_color color) {
-    scg_screen_draw_line(screen, x, y, x + width, y, color);
-    scg_screen_draw_line(screen, x, y, x, y + height, color);
-    scg_screen_draw_line(screen, x, y + height, x + width, y + height, color);
-    scg_screen_draw_line(screen, x + width, y, x + width, y + height, color);
+void scg_screen_draw_rect(scg_screen *screen, float32_t px, float32_t py,
+                          float32_t width, float32_t height, scg_color color) {
+    scg_screen_draw_line(screen, px, py, px + width, py, color);
+    scg_screen_draw_line(screen, px, py, px, py + height, color);
+    scg_screen_draw_line(screen, px, py + height, px + width, py + height,
+                         color);
+    scg_screen_draw_line(screen, px + width, py, px + width, py + height,
+                         color);
 }
 
 //
@@ -777,13 +790,13 @@ void scg_polygon_create_points(int num_points, float32_t out[num_points][2],
 // scg_screen_draw_polygon implementation
 //
 
-void scg_screen_draw_polygon(scg_screen *screen, float32_t x, float32_t y,
+void scg_screen_draw_polygon(scg_screen *screen, float32_t px, float32_t py,
                              float32_t points[][2], int num_points,
                              scg_color color) {
     for (int i = 0; i < num_points; i++) {
-        scg_screen_draw_line(screen, x + points[i][0], y + points[i][1],
-                             x + points[(i + 1) % num_points][0],
-                             y + points[(i + 1) % num_points][1], color);
+        scg_screen_draw_line(screen, px + points[i][0], py + points[i][1],
+                             px + points[(i + 1) % num_points][0],
+                             py + points[(i + 1) % num_points][1], color);
     }
 }
 
@@ -791,17 +804,18 @@ void scg_screen_draw_polygon(scg_screen *screen, float32_t x, float32_t y,
 // scg_screen_draw_image implementation
 //
 
-void scg_screen_draw_image(scg_screen *screen, int x, int y, scg_image *image) {
-    int image_width = image->width;
-    int image_height = image->height;
+void scg_screen_draw_image(scg_screen *screen, float32_t px, float32_t py,
+                           scg_image *image) {
+    float32_t image_width = image->width;
+    float32_t image_height = image->height;
 
-    for (int i = 0; i < image_height; i++) {
-        for (int j = 0; j < image_width; j++) {
+    for (float32_t i = 0; i < image_height; i++) {
+        for (float32_t j = 0; j < image_width; j++) {
             scg_pixel pixel;
-            pixel.packed =
-                image->pixels[scg__map_row_col_to_index(j, i, image_width)];
+            pixel.packed = image->pixels[scg__map_row_col_to_index(
+                (int)(j + 0.5f), (int)(i + 0.5f), image_width)];
 
-            scg_screen_set_pixel(screen, x + j, y + i, pixel);
+            scg_screen_set_pixel(screen, (int)(px + j), (int)(py + i), pixel);
         }
     }
 }

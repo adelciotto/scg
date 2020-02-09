@@ -23,7 +23,6 @@ int main(void) {
     scg_keyboard_create(&keyboard);
 
     scg_image image;
-    ;
     return_status = scg_image_create_from_tga(&image, "assets/alpha.tga");
     if (return_status.is_error) {
         scg_log_error("failed to create image, %s", return_status.error_msg);
@@ -43,6 +42,7 @@ int main(void) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
         }
+
         scg_keyboard_update(&keyboard);
 
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_NONE);

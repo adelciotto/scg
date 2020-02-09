@@ -9,6 +9,11 @@ else
 	CFLAGS += -O2 -DNDEBUG
 endif
 
+PROFILE ?= 0
+ifeq ($(PROFILE), 1)
+	CFLAGS += -pg
+endif
+
 .PHONY: default
 default: basic plasma image
 
@@ -30,3 +35,4 @@ clean:
 	rm -f basic plasma image
 	rm -f **/*.o
 	rm -rf *.dSYM
+	rm -f gmon.out

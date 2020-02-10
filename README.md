@@ -2,6 +2,8 @@
 
 My personal single file header library for quick and simple cross-platform graphics applications. It is currently in a WIP progress state, so not really usable for others. But feel free to take any code from it if it's useful.
 
+The library does all rendering in software by manually setting pixels. At the end of each frame these pixels are sent to a texture on the GPU which is scaled and presented on screen. This method of drawing is slow and not intended for any serious production software. It is designed for learning purposes and for building interactive demos.
+
 ## Setup
 
 The library requires the SDL2.

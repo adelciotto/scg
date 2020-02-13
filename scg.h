@@ -21,8 +21,9 @@
 // drawing:
 //	- basic circle
 //	- draw primitives/images with transforms (scale, rotate, etc)
-//		- provide with_transform functions for drawing images and
-//polygons
+//		- provide with_transform functions for drawing polygons
+//  - fix artifacts when rotating images
+
 //	- linear gradients
 // draw text:
 //  - multiline
@@ -54,9 +55,11 @@
 typedef struct scg_return_status scg_return_status;
 
 extern void scg_swap_int(int *a, int *b);
+extern void scg_swap_float32(float32_t *a, float32_t *b);
 extern int scg_min_int(int val, int min);
-extern float32_t scg_min_int_float32(float32_t val, float32_t min);
+extern float32_t scg_min_float32(float32_t val, float32_t min);
 extern float32_t scg_max_float32(float32_t val, float32_t max);
+extern float32_t scg_clamp_float32(float32_t val, float32_t min, float32_t max);
 
 extern uint64_t scg_get_performance_counter(void);
 extern uint64_t scg_get_performance_frequency(void);
@@ -119,6 +122,9 @@ extern void scg_screen_draw_polygon(scg_screen *screen, float32_t px,
                                     int num_points, scg_color color);
 extern void scg_screen_draw_image(scg_screen *screen, float32_t px,
                                   float32_t py, scg_image *image);
+extern void scg_screen_draw_image_with_transform(
+    scg_screen *screen, float32_t px, float32_t py, float32_t angle,
+    float32_t sx, float32_t sy, float32_t ax, float32_t ay, scg_image *image);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
                                    int y, int anchor_to_center,
                                    scg_color color);
@@ -299,6 +305,16 @@ void scg_swap_int(int *a, int *b) {
 }
 
 //
+// scg_swap_float32 implementation
+//
+
+void scg_swap_float32(float32_t *a, float32_t *b) {
+    float32_t temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+//
 // scg_min_int implementation
 //
 
@@ -320,6 +336,22 @@ float32_t scg_min_float32(float32_t val, float32_t min) {
 
 float32_t scg_max_float32(float32_t val, float32_t max) {
     return val > max ? val : max;
+}
+
+//
+// scg_clamp_float32 implementation
+//
+
+float32_t scg_clamp_float32(float32_t val, float32_t min, float32_t max) {
+    if (val < min) {
+        return min;
+    }
+
+    if (val > max) {
+        return max;
+    }
+
+    return val;
 }
 
 //
@@ -820,6 +852,58 @@ void scg_screen_draw_image(scg_screen *screen, float32_t px, float32_t py,
     }
 }
 
+//
+// scg_screen_draw_image_with_transform implementation
+//
+
+void scg_screen_draw_image_with_transform(scg_screen *screen, float32_t px,
+                                          float32_t py, float32_t angle,
+                                          float32_t sx, float32_t sy,
+                                          float32_t ax, float32_t ay,
+                                          scg_image *image) {
+    if (sx <= 0.0f)
+        sx = 1.0f;
+    if (sy <= 0.0f)
+        sy = 1.0f;
+    ax = scg_clamp_float32(ax, 0.0f, 1.0f);
+    ay = scg_clamp_float32(ay, 0.0f, 1.0f);
+
+    float32_t image_w = image->width;
+    float32_t image_h = image->height;
+    float32_t image_sw = image_w * sx;
+    float32_t image_sh = image_h * sy;
+    float32_t ratio_x = image_w / image_sw;
+    float32_t ratio_y = image_h / image_sh;
+
+    float32_t origin_x = image_w * 0.5f;
+    float32_t origin_y = image_h * 0.5f;
+
+    float32_t s = sinf(-angle);
+    float32_t c = cosf(-angle);
+
+    px -= image_sw * ax;
+    py -= image_sh * ay;
+
+    for (int i = 0; i < image_sh; i++) {
+        for (int j = 0; j < image_sw; j++) {
+            float32_t image_x = j * ratio_x - origin_x;
+            float32_t image_y = i * ratio_y - origin_y;
+            float32_t image_x_rot = (image_x * c - image_y * s) + origin_x;
+            float32_t image_y_rot = (image_x * s + image_y * c) + origin_y;
+
+            if (image_x_rot >= 0 && image_x_rot < image_w && image_y_rot >= 0 &&
+                image_y_rot < image_h) {
+                scg_pixel pixel;
+                pixel.packed = image->pixels[scg__map_row_col_to_index(
+                    (int)image_x_rot, (int)image_y_rot, image_w)];
+
+                scg_screen_set_pixel(screen, (int)(px + j), (int)(py + i),
+                                     pixel);
+            }
+        }
+    }
+}
+
 static void scg__draw_char(scg_screen *screen, const char *char_bitmap, int x,
                            int y, scg_pixel pixel) {
     for (int i = 0; i < SCG_FONT_SIZE; i++) {
@@ -840,7 +924,6 @@ static int scg__string_width(const char *str, int size) {
 //
 // scg_screen_draw_string implementation
 //
-// TODO: Multiline strings
 
 void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
                             int anchor_to_center, scg_color color) {

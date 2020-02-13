@@ -62,13 +62,13 @@ int main(void) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
         }
-        scg_keyboard_update(&keyboard);
 
         t += 0.01f;
         scg_screen_clear(&screen, clear_color);
         update_and_draw(&screen, t);
         scg_screen_draw_fps(&screen);
 
+        scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);
     }
 

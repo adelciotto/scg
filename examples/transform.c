@@ -27,47 +27,24 @@ int main(void) {
     }
 
     scg_color clear_color = SCG_COLOR_95_GREEN;
-    scg_color text_color = SCG_COLOR_WHITE;
 
-    int center_image_x = screen.width / 2 - image.width / 2;
-    int center_image_y = screen.height / 2 - image.height / 2;
-    int image_blend_none_x = center_image_x - image.width - 32;
-    int image_blend_alpha_x = center_image_x;
-    int image_blend_mask_x = center_image_x + image.width + 32;
-
-    float32_t angle = 0.0f;
+    float32_t image_angle = 0.0f;
 
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
         }
 
-        angle += 0.01f;
+        image_angle += 0.01f;
 
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_NONE);
         scg_screen_clear(&screen, clear_color);
         scg_screen_draw_fps(&screen);
 
-        scg_screen_draw_string(
-            &screen, "NONE", image_blend_none_x + image.width / 2,
-            center_image_y + image.height + 16, 1, text_color);
-        scg_screen_draw_string(
-            &screen, "ALPHA", image_blend_alpha_x + image.width / 2,
-            center_image_y + image.height + 16, 1, text_color);
-        scg_screen_draw_string(
-            &screen, "MASK", image_blend_mask_x + image.width / 2,
-            center_image_y + image.height + 16, 1, text_color);
-
-        scg_screen_draw_image(&screen, image_blend_none_x, center_image_y,
-                              &image);
-
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_ALPHA);
-        scg_screen_draw_image(&screen, image_blend_alpha_x, center_image_y,
-                              &image);
-
-        scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_MASK);
-        scg_screen_draw_image(&screen, image_blend_mask_x, center_image_y,
-                              &image);
+        scg_screen_draw_image_with_transform(&screen, screen.width * 0.5f,
+                                             screen.height * 0.5f, image_angle,
+                                             2.0f, 2.0f, 0.5f, 0.5f, &image);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

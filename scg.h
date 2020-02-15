@@ -23,7 +23,6 @@
 //	- draw primitives/images with transforms (scale, rotate, etc)
 //		- provide with_transform functions for drawing polygons
 //  - fix artifacts when rotating images
-
 //	- linear gradients
 // draw text:
 //  - multiline
@@ -120,11 +119,13 @@ extern void scg_polygon_create_points(int num_points,
 extern void scg_screen_draw_polygon(scg_screen *screen, float32_t px,
                                     float32_t py, float32_t points[][2],
                                     int num_points, scg_color color);
-extern void scg_screen_draw_image(scg_screen *screen, float32_t px,
-                                  float32_t py, scg_image *image);
-extern void scg_screen_draw_image_with_transform(
-    scg_screen *screen, float32_t px, float32_t py, float32_t angle,
-    float32_t sx, float32_t sy, float32_t ax, float32_t ay, scg_image *image);
+extern void scg_screen_draw_image(scg_screen *screen, scg_image image,
+                                  float32_t px, float32_t py);
+extern void scg_screen_draw_image_with_transform(scg_screen *screen,
+                                                 scg_image image, float32_t px,
+                                                 float32_t py, float32_t angle,
+                                                 float32_t sx, float32_t sy,
+                                                 float32_t ax, float32_t ay);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
                                    int y, int anchor_to_center,
                                    scg_color color);
@@ -226,6 +227,7 @@ struct scg_screen {
     SDL_Texture *sdl_texture;
     uint32_t *pixels;
     int pitch;
+    int total_num_pixels;
 };
 
 struct scg_sound {
@@ -626,9 +628,10 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
 
     uint32_t *pixels = (uint32_t *)calloc(width * height, sizeof(*pixels));
     if (pixels == NULL) {
+        int total_bytes = width * height * sizeof(*pixels);
         const char *error_msg = scg__sprintf(
             "Failed to allocate memory for pixel buffer. w=%d, h=%d, bytes=%d",
-            width, height, width * height * sizeof(*pixels));
+            width, height, total_bytes);
         return scg__return_status_failure(error_msg);
     }
 
@@ -644,6 +647,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     screen->sdl_renderer = sdl_renderer;
     screen->sdl_texture = sdl_texture;
     screen->pixels = pixels;
+    screen->total_num_pixels = screen->width * screen->height;
     screen->pitch = screen->width * sizeof(uint32_t);
     screen->blend_mode = SCG_BLEND_MODE_NONE;
     screen->is_running = 1;
@@ -692,7 +696,7 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
 
         if (screen->blend_mode == SCG_BLEND_MODE_ALPHA) {
             scg_pixel d = scg_pixel_create_from_uint32(screen->pixels[index]);
-            float32_t a = (float32_t)(pixel.color.a / 255.0f) * 1.0f;
+            float32_t a = (float32_t)(pixel.color.a / 255.0f);
             float32_t c = 1.0f - a;
             float32_t r =
                 a * (float32_t)pixel.color.r + c * (float32_t)d.color.r;
@@ -716,12 +720,11 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
 //
 
 void scg_screen_clear(scg_screen *screen, scg_color color) {
-    scg_pixel pixel = scg_color_to_pixel(color);
+    uint32_t pixel = scg_color_to_pixel(color).packed;
+    int num_pixels = screen->total_num_pixels;
 
-    for (int y = 0; y < screen->height; y++) {
-        for (int x = 0; x < screen->width; x++) {
-            scg_screen_set_pixel(screen, x, y, pixel);
-        }
+    for (int i = 0; i < num_pixels; ++i) {
+        screen->pixels[i] = pixel;
     }
 }
 
@@ -836,16 +839,16 @@ void scg_screen_draw_polygon(scg_screen *screen, float32_t px, float32_t py,
 // scg_screen_draw_image implementation
 //
 
-void scg_screen_draw_image(scg_screen *screen, float32_t px, float32_t py,
-                           scg_image *image) {
-    float32_t image_width = image->width;
-    float32_t image_height = image->height;
+void scg_screen_draw_image(scg_screen *screen, scg_image image, float32_t px,
+                           float32_t py) {
+    float32_t image_w = image.width;
+    float32_t image_h = image.height;
 
-    for (float32_t i = 0; i < image_height; i++) {
-        for (float32_t j = 0; j < image_width; j++) {
+    for (float32_t i = 0; i < image_h; i++) {
+        for (float32_t j = 0; j < image_w; j++) {
             scg_pixel pixel;
-            pixel.packed = image->pixels[scg__map_row_col_to_index(
-                (int)(j + 0.5f), (int)(i + 0.5f), image_width)];
+            pixel.packed = image.pixels[scg__map_row_col_to_index(
+                (int)(j + 0.5f), (int)(i + 0.5f), image_w)];
 
             scg_screen_set_pixel(screen, (int)(px + j), (int)(py + i), pixel);
         }
@@ -856,11 +859,11 @@ void scg_screen_draw_image(scg_screen *screen, float32_t px, float32_t py,
 // scg_screen_draw_image_with_transform implementation
 //
 
-void scg_screen_draw_image_with_transform(scg_screen *screen, float32_t px,
-                                          float32_t py, float32_t angle,
-                                          float32_t sx, float32_t sy,
-                                          float32_t ax, float32_t ay,
-                                          scg_image *image) {
+void scg_screen_draw_image_with_transform(scg_screen *screen, scg_image image,
+                                          float32_t px, float32_t py,
+                                          float32_t angle, float32_t sx,
+                                          float32_t sy, float32_t ax,
+                                          float32_t ay) {
     if (sx <= 0.0f)
         sx = 1.0f;
     if (sy <= 0.0f)
@@ -868,8 +871,8 @@ void scg_screen_draw_image_with_transform(scg_screen *screen, float32_t px,
     ax = scg_clamp_float32(ax, 0.0f, 1.0f);
     ay = scg_clamp_float32(ay, 0.0f, 1.0f);
 
-    float32_t image_w = image->width;
-    float32_t image_h = image->height;
+    float32_t image_w = image.width;
+    float32_t image_h = image.height;
     float32_t image_sw = image_w * sx;
     float32_t image_sh = image_h * sy;
     float32_t ratio_x = image_w / image_sw;
@@ -884,8 +887,8 @@ void scg_screen_draw_image_with_transform(scg_screen *screen, float32_t px,
     px -= image_sw * ax;
     py -= image_sh * ay;
 
-    for (int i = 0; i < image_sh; i++) {
-        for (int j = 0; j < image_sw; j++) {
+    for (float32_t i = 0; i < image_sh; i++) {
+        for (float32_t j = 0; j < image_sw; j++) {
             float32_t image_x = j * ratio_x - origin_x;
             float32_t image_y = i * ratio_y - origin_y;
             float32_t image_x_rot = (image_x * c - image_y * s) + origin_x;
@@ -894,7 +897,7 @@ void scg_screen_draw_image_with_transform(scg_screen *screen, float32_t px,
             if (image_x_rot >= 0 && image_x_rot < image_w && image_y_rot >= 0 &&
                 image_y_rot < image_h) {
                 scg_pixel pixel;
-                pixel.packed = image->pixels[scg__map_row_col_to_index(
+                pixel.packed = image.pixels[scg__map_row_col_to_index(
                     (int)image_x_rot, (int)image_y_rot, image_w)];
 
                 scg_screen_set_pixel(screen, (int)(px + j), (int)(py + i),
@@ -956,9 +959,9 @@ void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
 
 void scg_screen_draw_fps(scg_screen *screen) {
     float32_t fps = screen->frame_metrics.fps;
-    ssize_t bsize = snprintf(NULL, 0, "fps:%f", fps);
+    ssize_t bsize = snprintf(NULL, 0, "fps:%.2f", fps);
     char buffer[bsize];
-    snprintf(buffer, bsize + 1, "fps:%f", fps);
+    snprintf(buffer, bsize + 1, "fps:%.2f", fps);
 
     scg_color color = SCG_COLOR_GREEN;
     float32_t target_fps = (float32_t)screen->target_frames_per_sec;
@@ -981,10 +984,12 @@ void scg_screen_present(scg_screen *screen) {
     // ~16ms). Spinning in a while loop seems to be the most accurate way to do
     // this, as trying to use SDL_Delay (sleeping) is dependant on other
     // factors.
+    float64_t target_secs = screen->target_time_per_frame_secs;
     float64_t elapsed_time_secs = scg_get_elapsed_time_secs(
         scg_get_performance_counter(), screen->last_frame_counter);
-    if (elapsed_time_secs < screen->target_time_per_frame_secs) {
-        while (elapsed_time_secs < screen->target_time_per_frame_secs) {
+
+    if (elapsed_time_secs < target_secs) {
+        while (elapsed_time_secs < target_secs) {
             elapsed_time_secs = scg_get_elapsed_time_secs(
                 scg_get_performance_counter(), screen->last_frame_counter);
         }

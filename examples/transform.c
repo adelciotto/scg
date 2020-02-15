@@ -26,9 +26,8 @@ int main(void) {
         return -1;
     }
 
-    scg_color clear_color = SCG_COLOR_95_GREEN;
-
     float32_t image_angle = 0.0f;
+    scg_color clear_color = SCG_COLOR_95_GREEN;
 
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
@@ -42,9 +41,9 @@ int main(void) {
         scg_screen_draw_fps(&screen);
 
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_ALPHA);
-        scg_screen_draw_image_with_transform(&screen, screen.width * 0.5f,
-                                             screen.height * 0.5f, image_angle,
-                                             2.0f, 2.0f, 0.5f, 0.5f, &image);
+        scg_screen_draw_image_with_transform(
+            &screen, image, screen.width * 0.1f, screen.height * 0.5f,
+            image_angle, 2.0f, 2.0f, 0.5f, 0.5f);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

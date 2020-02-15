@@ -58,16 +58,16 @@ int main(void) {
             &screen, "MASK", image_blend_mask_x + image.width / 2,
             center_image_y + image.height + 16, 1, text_color);
 
-        scg_screen_draw_image(&screen, image_blend_none_x, center_image_y,
-                              &image);
+        scg_screen_draw_image(&screen, image, image_blend_none_x,
+                              center_image_y);
 
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_ALPHA);
-        scg_screen_draw_image(&screen, image_blend_alpha_x, center_image_y,
-                              &image);
+        scg_screen_draw_image(&screen, image, image_blend_alpha_x,
+                              center_image_y);
 
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_MASK);
-        scg_screen_draw_image(&screen, image_blend_mask_x, center_image_y,
-                              &image);
+        scg_screen_draw_image(&screen, image, image_blend_mask_x,
+                              center_image_y);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

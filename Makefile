@@ -15,7 +15,7 @@ ifeq ($(PROFILE), 1)
 endif
 
 .PHONY: default
-default: basic plasma image transform
+default: basic plasma image transform rotozoom
 
 basic: examples/basic.c scg.h
 	$(CC) examples/basic.c -o basic $(CFLAGS) $(LDFLAGS) $(INCLUDES)
@@ -29,13 +29,16 @@ image: examples/image.c scg.h
 transform: examples/transform.c scg.h
 	$(CC) examples/transform.c -o transform $(CFLAGS) $(LDFLAGS) $(INCLUDES)
 
+rotozoom: examples/rotozoom.c scg.h
+	$(CC) examples/rotozoom.c -o rotozoom $(CFLAGS) $(LDFLAGS) $(INCLUDES)
+
 .PHONY: format
 format:
 	clang-format --verbose -i -style=file examples/*.c scg.h
 
 .PHONY: clean
 clean:
-	rm -f basic plasma image transform
+	rm -f basic plasma image transform rotozoom
 	rm -f **/*.o
 	rm -rf *.dSYM
 	rm -f gmon.out

@@ -1,6 +1,31 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
+static void draw_image_with_rotozoom(scg_screen *screen, scg_image image, float32_t angle, float32_t scale) {
+	float32_t screen_w = (float32_t)screen->width;
+	float32_t screen_h = (float32_t)screen->height;
+
+	int image_w = image.width;
+	int image_h = image.height;
+
+	float32_t s = sinf(angle);
+	float32_t c = cosf(angle);
+
+	for (float32_t y = 0; y < screen_h; y++) {
+		for (float32_t x = 0; x < screen_w; x++) {
+			float32_t tx = (x * c - y * s) * scale;
+			float32_t ty = (x * s + y * c) * scale;
+
+			int col = (int)(fabs(tx)) % image_w;
+			int row = (int)(fabs(ty)) % image_h;
+
+			scg_pixel pixel;
+			pixel.packed = image.pixels[row * image_w + col];
+			scg_screen_set_pixel(screen, (int)x, (int)y, pixel);
+		}
+	}
+}
+
 int main(void) {
     const int width = 512;
     const int height = 480;
@@ -9,7 +34,7 @@ int main(void) {
 
     scg_screen screen;
     scg_return_status return_status =
-        scg_screen_create(&screen, "transform", width, height, scale, fullscreen);
+        scg_screen_create(&screen, "rotozoom", width, height, scale, fullscreen);
     if (return_status.is_error) {
         scg_log_error("failed to create screen, %s", return_status.error_msg);
         return -1;
@@ -34,16 +59,14 @@ int main(void) {
             scg_screen_close(&screen);
         }
 
-        elapsed_time += screen.target_time_per_frame_secs;
+		elapsed_time += screen.target_time_per_frame_secs;
 
-        scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_NONE);
         scg_screen_clear(&screen, clear_color);
-        scg_screen_draw_fps(&screen);
 
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_ALPHA);
-        scg_screen_draw_image_with_transform(
-            &screen, image, screen.width * 0.5f, screen.height * 0.5f,
-            elapsed_time, 2.0f, 2.0f, 0.5f, 0.5f);
+		draw_image_with_rotozoom(&screen, image, elapsed_time, sinf(elapsed_time * 0.5f));
+
+        scg_screen_draw_fps(&screen);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

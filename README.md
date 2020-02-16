@@ -44,6 +44,7 @@ Replace `{{example_name}}` with any of the following:
 * `plasma`
 * `image`
 * `transform`
+* `rotozoom`
 
 By default all the examples are built with optimization flags. To build in debug mode, use the `DEBUG=1` flag.
 
@@ -59,10 +60,10 @@ make {{example_name}} DEBUG=1
 
 ## Examples
 
-| Basic                          | Plasma                         | Image                         | Transform                             |
-| ------------------------------ | ------------------------------ | ----------------------------- | ------------------------------------- |
-| ![basic](/previews/basic.png)  | ![plasma](/previews/plasma.png)| ![image](/previews/image.png) | ![transform](/previews/transform.png)
-| [Source](/examples/basic.c)    | [Source](/examples/plasma.c)   | [Source](examples/image.c)    | [Source](examples/transform.c)
+| Basic                          | Plasma                         | Image                         | Transform                             | Rotozoom
+| ------------------------------ | ------------------------------ | ----------------------------- | ------------------------------------- | ------------------------------------ |
+| ![basic](/previews/basic.png)  | ![plasma](/previews/plasma.png)| ![image](/previews/image.png) | ![transform](/previews/transform.png) | ![rotozoom](/previews/rotozoom.png)  |
+| [Source](/examples/basic.c)    | [Source](/examples/plasma.c)   | [Source](examples/image.c)    | [Source](examples/transform.c)        | [Source](examples/rotozoom.c)        |
 
 ## Converting audio
 

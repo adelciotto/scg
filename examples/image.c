@@ -2,8 +2,8 @@
 #include "../scg.h"
 
 int main(void) {
-    const int width = 512;
-    const int height = 480;
+    const int width = 640;
+    const int height = 512;
     const int scale = 1;
     const int fullscreen = 1;
 

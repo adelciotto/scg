@@ -22,7 +22,7 @@ static void update_and_draw(scg_screen *screen) {
 int main(void) {
     const int width = 256;
     const int height = 240;
-    const int scale = 2;
+    const int scale = 1;
     const int fullscreen = 1;
 
     scg_screen screen;

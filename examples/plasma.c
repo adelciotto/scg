@@ -47,7 +47,8 @@ int main(void) {
     scg_return_status return_status =
         scg_screen_create(&screen, "plasma", width, height, scale, fullscreen);
     if (return_status.is_error) {
-        scg_log_error("failed to create screen, %s", return_status.error_msg);
+        scg_log_error("Failed to create screen. Error: %s",
+                      return_status.error_msg);
         return -1;
     }
     scg_screen_log_info(&screen);
@@ -55,17 +56,18 @@ int main(void) {
     scg_keyboard keyboard;
     scg_keyboard_create(&keyboard);
 
+    float32_t elapsed_time = 0.0f;
     scg_color clear_color = SCG_COLOR_BLACK;
-    float32_t t = 0.0f;
 
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
         }
 
-        t += 0.01f;
+        elapsed_time += 1.0f * screen.target_time_per_frame_secs;
+
         scg_screen_clear(&screen, clear_color);
-        update_and_draw(&screen, t);
+        update_and_draw(&screen, elapsed_time);
         scg_screen_draw_fps(&screen);
 
         scg_keyboard_update(&keyboard);

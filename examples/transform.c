@@ -8,10 +8,11 @@ int main(void) {
     const int fullscreen = 1;
 
     scg_screen screen;
-    scg_return_status return_status =
-        scg_screen_create(&screen, "transform", width, height, scale, fullscreen);
+    scg_return_status return_status = scg_screen_create(
+        &screen, "transform", width, height, scale, fullscreen);
     if (return_status.is_error) {
-        scg_log_error("failed to create screen, %s", return_status.error_msg);
+        scg_log_error("Failed to create screen. Error: %s",
+                      return_status.error_msg);
         return -1;
     }
     scg_screen_log_info(&screen);
@@ -22,7 +23,8 @@ int main(void) {
     scg_image image;
     return_status = scg_image_create_from_tga(&image, "assets/alpha.tga");
     if (return_status.is_error) {
-        scg_log_error("failed to create image, %s", return_status.error_msg);
+        scg_log_error("Failed to create image. Error: %s",
+                      return_status.error_msg);
         return -1;
     }
 
@@ -34,7 +36,7 @@ int main(void) {
             scg_screen_close(&screen);
         }
 
-        elapsed_time += screen.target_time_per_frame_secs;
+        elapsed_time += 1.0f * screen.target_time_per_frame_secs;
 
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_NONE);
         scg_screen_clear(&screen, clear_color);

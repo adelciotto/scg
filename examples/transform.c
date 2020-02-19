@@ -5,7 +5,7 @@ int main(void) {
     const int width = 640;
     const int height = 512;
     const int scale = 1;
-    const int fullscreen = 1;
+    const int fullscreen = 0;
 
     scg_screen screen;
     scg_return_status return_status = scg_screen_create(
@@ -21,7 +21,7 @@ int main(void) {
     scg_keyboard_create(&keyboard);
 
     scg_image image;
-    return_status = scg_image_create_from_tga(&image, "assets/alpha.tga");
+    return_status = scg_image_create_from_tga(&image, "assets/ball.tga");
     if (return_status.is_error) {
         scg_log_error("Failed to create image. Error: %s",
                       return_status.error_msg);

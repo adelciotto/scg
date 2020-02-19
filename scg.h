@@ -215,6 +215,7 @@ struct scg_screen {
     float64_t target_time_per_frame_secs;
     uint64_t last_frame_counter;
     struct frame_metrics {
+        float64_t update_counter;
         float64_t time_per_frame_secs;
         float64_t time_per_frame_millisecs;
         float64_t fps;
@@ -650,6 +651,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     screen->total_num_pixels = screen->width * screen->height;
     screen->pitch = screen->width * sizeof(uint32_t);
     screen->blend_mode = SCG_BLEND_MODE_NONE;
+    screen->frame_metrics.update_counter = scg_get_performance_counter();
     screen->is_running = 1;
 
     return scg__return_status_success();
@@ -1002,14 +1004,19 @@ void scg_screen_present(scg_screen *screen) {
     SDL_RenderCopy(screen->sdl_renderer, screen->sdl_texture, NULL, NULL);
     SDL_RenderPresent(screen->sdl_renderer);
 
-    screen->frame_metrics.time_per_frame_secs = scg_get_elapsed_time_secs(
-        end_frame_counter, screen->last_frame_counter);
-    screen->frame_metrics.time_per_frame_millisecs =
-        scg_get_elapsed_time_millisecs(end_frame_counter,
-                                       screen->last_frame_counter);
-    screen->frame_metrics.fps =
-        (float64_t)scg_get_performance_frequency() /
-        (float64_t)(end_frame_counter - screen->last_frame_counter);
+    if (scg_get_elapsed_time_secs(scg_get_performance_counter(),
+                                  screen->frame_metrics.update_counter) >=
+        1.0f) {
+        screen->frame_metrics.time_per_frame_secs = scg_get_elapsed_time_secs(
+            end_frame_counter, screen->last_frame_counter);
+        screen->frame_metrics.time_per_frame_millisecs =
+            scg_get_elapsed_time_millisecs(end_frame_counter,
+                                           screen->last_frame_counter);
+        screen->frame_metrics.fps =
+            (float64_t)scg_get_performance_frequency() /
+            (float64_t)(end_frame_counter - screen->last_frame_counter);
+        screen->frame_metrics.update_counter = scg_get_performance_counter();
+    }
 
     screen->last_frame_counter = end_frame_counter;
 }

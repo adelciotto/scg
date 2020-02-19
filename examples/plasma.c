@@ -41,7 +41,7 @@ int main(void) {
     const int width = 256;
     const int height = 240;
     const int scale = 2;
-    const int fullscreen = 1;
+    const int fullscreen = 0;
 
     scg_screen screen;
     scg_return_status return_status =

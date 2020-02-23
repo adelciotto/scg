@@ -62,6 +62,7 @@ typedef struct scg_return_status {
 extern void scg_swap_int(int *a, int *b);
 extern void scg_swap_float32(float32_t *a, float32_t *b);
 extern int scg_min_int(int val, int min);
+extern int scg_max_int(int val, int max);
 extern float32_t scg_min_float32(float32_t val, float32_t min);
 extern float32_t scg_max_float32(float32_t val, float32_t max);
 extern float32_t scg_clamp_float32(float32_t val, float32_t min, float32_t max);
@@ -91,6 +92,7 @@ extern scg_pixel scg_pixel_create_from_uint32(uint32_t packed);
 #define SCG_COLOR_BLUE scg_pixel_create(0, 0, 255)
 #define SCG_COLOR_YELLOW scg_pixel_create(255, 255, 0)
 #define SCG_COLOR_95_GREEN scg_pixel_create(0, 128, 128);
+#define SCG_COLOR_ICE_BLUE scg_pixel_create(153, 255, 255);
 
 typedef struct scg_image {
     int width;
@@ -122,6 +124,8 @@ extern void scg_screen_clear(scg_screen *screen, scg_pixel color);
 extern void scg_screen_draw_line(scg_screen *screen, int px0, int py0, int px1,
                                  int py1, scg_pixel color);
 extern void scg_screen_draw_rect(scg_screen *screen, int px, int py, int width,
+                                 int height, scg_pixel color);
+extern void scg_screen_fill_rect(scg_screen *screen, int px, int py, int width,
                                  int height, scg_pixel color);
 // Maybe a temporary function...
 extern void scg_polygon_create_points(int num_points,
@@ -305,6 +309,14 @@ void scg_swap_float32(float32_t *a, float32_t *b) {
 
 int scg_min_int(int val, int min) {
     return val < min ? val : min;
+}
+
+//
+// scg_max_int implementation
+//
+
+int scg_max_int(int val, int max) {
+    return val > max ? val : max;
 }
 
 //
@@ -762,6 +774,19 @@ void scg_screen_draw_rect(scg_screen *screen, int px, int py, int width,
                          color);
     scg_screen_draw_line(screen, px + width, py, px + width, py + height,
                          color);
+}
+
+//
+// scg_screen_fill_rect_implementation
+//
+
+void scg_screen_fill_rect(scg_screen *screen, int px, int py, int width,
+                          int height, scg_pixel color) {
+    for (int i = 0; i < height; i++) {
+        for (int j = 0; j < width; j++) {
+            scg_screen_set_pixel(screen, px + j, py + i, color);
+        }
+    }
 }
 
 //

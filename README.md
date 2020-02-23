@@ -46,6 +46,7 @@ Replace `{{example_name}}` with any of the following:
 * `transform`
 * `rotozoom`
 * `tunnel`
+* `starfield`
 
 By default all the examples are built with optimization flags. To build in debug mode, use the `DEBUG=1` flag.
 
@@ -61,10 +62,10 @@ make {{example_name}} DEBUG=1
 
 ## Examples
 
-| Basic                          | Plasma                         | Image                         | Transform                             | Rotozoom                             | Tunnel                          |
-| ------------------------------ | ------------------------------ | ----------------------------- | ------------------------------------- | ------------------------------------ | ------------------------------- |
-| ![basic](/previews/basic.png)  | ![plasma](/previews/plasma.png)| ![image](/previews/image.png) | ![transform](/previews/transform.png) | ![rotozoom](/previews/rotozoom.png)  | ![tunnel](/previews/tunnel.png) |
-| [Source](/examples/basic.c)    | [Source](/examples/plasma.c)   | [Source](examples/image.c)    | [Source](examples/transform.c)        | [Source](examples/rotozoom.c)        | [Source](examples/tunnel.c)     |
+| Basic                          | Plasma                         | Image                         | Transform                             | Rotozoom                             | Tunnel                          | Starfield                       |
+| ------------------------------ | ------------------------------ | ----------------------------- | ------------------------------------- | ------------------------------------ | ------------------------------- | ------------------------------- |
+| ![basic](/previews/basic.png)  | ![plasma](/previews/plasma.png)| ![image](/previews/image.png) | ![transform](/previews/transform.png) | ![rotozoom](/previews/rotozoom.png)  | ![tunnel](/previews/tunnel.png) | ![starfield](/previews/starfield.png) |
+| [Source](/examples/basic.c)    | [Source](/examples/plasma.c)   | [Source](examples/image.c)    | [Source](examples/transform.c)        | [Source](examples/rotozoom.c)        | [Source](examples/tunnel.c)     | [Source](examples/starfield.c)     |
 
 ## Converting audio
 

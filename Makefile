@@ -15,7 +15,7 @@ ifeq ($(PROFILE), 1)
 endif
 
 .PHONY: default
-default: basic plasma image transform rotozoom tunnel
+default: basic plasma image transform rotozoom tunnel starfield
 
 basic: examples/basic.c scg.h
 	$(CC) examples/basic.c -o basic $(CFLAGS) $(LDFLAGS) $(INCLUDES)
@@ -35,13 +35,16 @@ rotozoom: examples/rotozoom.c scg.h
 tunnel: examples/tunnel.c scg.h
 	$(CC) examples/tunnel.c -o tunnel $(CFLAGS) $(LDFLAGS) $(INCLUDES)
 
+starfield: examples/starfield.c scg.h
+	$(CC) examples/starfield.c -o starfield $(CFLAGS) $(LDFLAGS) $(INCLUDES)
+
 .PHONY: format
 format:
 	clang-format --verbose -i -style=file examples/*.c scg.h
 
 .PHONY: clean
 clean:
-	rm -f basic plasma image transform rotozoom tunnel
+	rm -f basic plasma image transform rotozoom tunnel starfield
 	rm -f **/*.o
 	rm -rf *.dSYM
 	rm -f gmon.out

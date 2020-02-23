@@ -43,7 +43,10 @@
 
 #define float32_t float
 #define float64_t double
+#define bool_t unsigned int
 
+#define SCG_TRUE 1
+#define SCG_FALSE 0
 #define SCG_PI 3.1415926535f
 
 #define scg_log_error(...)                                                     \
@@ -51,7 +54,10 @@
 #define scg_log_warn(...) SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
 #define scg_log_info(...) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
 
-typedef struct scg_return_status scg_return_status;
+typedef struct scg_return_status {
+    bool_t is_error;
+    const char *error_msg;
+} scg_return_status;
 
 extern void scg_swap_int(int *a, int *b);
 extern void scg_swap_float32(float32_t *a, float32_t *b);
@@ -65,25 +71,32 @@ extern uint64_t scg_get_performance_frequency(void);
 extern float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start);
 extern float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start);
 
-typedef union scg_pixel scg_pixel;
+typedef union scg_pixel {
+    uint32_t packed;
+    struct {
+        uint8_t r;
+        uint8_t g;
+        uint8_t b;
+        uint8_t a;
+    } color;
+} scg_pixel;
 
 extern scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b);
-extern scg_pixel scg_pixel_create_from_uint32(uint32_t color);
+extern scg_pixel scg_pixel_create_from_uint32(uint32_t packed);
 
-typedef struct scg_color scg_color;
+#define SCG_COLOR_WHITE scg_pixel_create(255, 255, 255)
+#define SCG_COLOR_BLACK scg_pixel_create(0, 0, 0)
+#define SCG_COLOR_RED scg_pixel_create(255, 0, 0)
+#define SCG_COLOR_GREEN scg_pixel_create(0, 255, 0)
+#define SCG_COLOR_BLUE scg_pixel_create(0, 0, 255)
+#define SCG_COLOR_YELLOW scg_pixel_create(255, 255, 0)
+#define SCG_COLOR_95_GREEN scg_pixel_create(0, 128, 128);
 
-extern scg_color scg_color_create(float32_t r, float32_t g, float32_t b);
-extern scg_pixel scg_color_to_pixel(scg_color color);
-
-#define SCG_COLOR_WHITE scg_color_create(1.0f, 1.0f, 1.0f)
-#define SCG_COLOR_BLACK scg_color_create(0.0, 0.0f, 0.0f)
-#define SCG_COLOR_RED scg_color_create(1.0f, 0.0f, 0.0f)
-#define SCG_COLOR_GREEN scg_color_create(0.0f, 1.0f, 0.0f)
-#define SCG_COLOR_BLUE scg_color_create(0.0f, 0.0f, 1.0f)
-#define SCG_COLOR_YELLOW scg_color_create(1.0f, 1.0f, 0.0f)
-#define SCG_COLOR_95_GREEN scg_color_create(0.0f, 0.5f, 0.5f);
-
-typedef struct scg_image scg_image;
+typedef struct scg_image {
+    int width;
+    int height;
+    uint32_t *pixels;
+} scg_image;
 
 extern scg_return_status scg_image_create_from_tga(scg_image *image,
                                                    const char *filepath);
@@ -99,36 +112,33 @@ typedef struct scg_screen scg_screen;
 
 scg_return_status scg_screen_create(scg_screen *screen, const char *title,
                                     int width, int height, int scale,
-                                    int fullscreen);
-extern int scg_screen_is_running(scg_screen *screen);
+                                    bool_t fullscreen);
+extern bool_t scg_screen_is_running(scg_screen *screen);
 extern void scg_screen_set_blend_mode(scg_screen *screen,
                                       scg_blend_mode blend_mode);
 extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
                                  scg_pixel pixel);
-extern void scg_screen_clear(scg_screen *screen, scg_color color);
-extern void scg_screen_draw_line(scg_screen *screen, float32_t px0,
-                                 float32_t py0, float32_t px1, float32_t py1,
-                                 scg_color color);
-extern void scg_screen_draw_rect(scg_screen *screen, float32_t px, float32_t py,
-                                 float32_t width, float32_t height,
-                                 scg_color color);
+extern void scg_screen_clear(scg_screen *screen, scg_pixel color);
+extern void scg_screen_draw_line(scg_screen *screen, int px0, int py0, int px1,
+                                 int py1, scg_pixel color);
+extern void scg_screen_draw_rect(scg_screen *screen, int px, int py, int width,
+                                 int height, scg_pixel color);
 // Maybe a temporary function...
 extern void scg_polygon_create_points(int num_points,
                                       float32_t out[num_points][2],
                                       float32_t radius);
-extern void scg_screen_draw_polygon(scg_screen *screen, float32_t px,
-                                    float32_t py, float32_t points[][2],
-                                    int num_points, scg_color color);
-extern void scg_screen_draw_image(scg_screen *screen, scg_image image,
-                                  float32_t px, float32_t py);
+extern void scg_screen_draw_polygon(scg_screen *screen, int px, int py,
+                                    float32_t points[][2], int num_points,
+                                    scg_pixel color);
+extern void scg_screen_draw_image(scg_screen *screen, scg_image image, int px,
+                                  int py);
 extern void scg_screen_draw_image_with_transform(scg_screen *screen,
-                                                 scg_image image, float32_t px,
-                                                 float32_t py, float32_t angle,
-                                                 float32_t sx, float32_t sy,
-                                                 float32_t ax, float32_t ay);
+                                                 scg_image image, int px,
+                                                 int py, float32_t angle,
+                                                 float32_t sx, float32_t sy);
 extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
                                    int y, int anchor_to_center,
-                                   scg_color color);
+                                   scg_pixel color);
 extern void scg_screen_draw_fps(scg_screen *screen);
 extern void scg_screen_present(scg_screen *screen);
 extern void scg_screen_log_info(scg_screen *screen);
@@ -143,7 +153,7 @@ extern scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
 extern void scg_sound_device_log_info(scg_sound_device *sound_device);
 extern scg_return_status
 scg_sound_create_from_wav(scg_sound_device *sound_device, scg_sound *sound,
-                          const char *filepath, int loop);
+                          const char *filepath, bool_t loop);
 extern void scg_sound_play(scg_sound *sound);
 extern void scg_sound_device_update(scg_sound_device *sound_device);
 extern void scg_sound_device_destroy(scg_sound_device *sound_device);
@@ -176,34 +186,6 @@ extern void scg_keyboard_update(scg_keyboard *keyboard);
 
 #define SCG_MAX_SOUNDS 16 // TODO: use linked list for sounds?
 
-struct scg_return_status {
-    int is_error;
-    const char *error_msg;
-};
-
-union scg_pixel {
-    uint32_t packed;
-    struct {
-        uint8_t r;
-        uint8_t g;
-        uint8_t b;
-        uint8_t a;
-    } color;
-};
-
-struct scg_color {
-    float32_t r;
-    float32_t g;
-    float32_t b;
-    float32_t a;
-};
-
-struct scg_image {
-    int width;
-    int height;
-    uint32_t *pixels;
-};
-
 struct scg_screen {
     const char *title;
     int width;
@@ -221,7 +203,7 @@ struct scg_screen {
         float64_t fps;
     } frame_metrics;
 
-    int is_running;
+    bool_t is_running;
 
     SDL_Window *sdl_window;
     SDL_Renderer *sdl_renderer;
@@ -238,8 +220,8 @@ struct scg_sound {
     uint8_t *buffer;
     int play_offset;
     uint8_t *end_position;
-    int is_playing;
-    int loop;
+    bool_t is_playing;
+    bool_t loop;
 };
 
 struct scg_sound_device {
@@ -279,11 +261,11 @@ struct scg_keyboard {
 extern const char scg__font8x8[128][SCG_FONT_SIZE];
 
 static scg_return_status scg__return_status_failure(const char *error_msg) {
-    return (scg_return_status){1, error_msg};
+    return (scg_return_status){SCG_TRUE, error_msg};
 }
 
 static scg_return_status scg__return_status_success(void) {
-    return (scg_return_status){0, ""};
+    return (scg_return_status){SCG_FALSE, ""};
 }
 
 static const char *scg__sprintf(const char *fmt, ...) {
@@ -412,27 +394,6 @@ scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b) {
 scg_pixel scg_pixel_create_from_uint32(uint32_t color) {
     scg_pixel pixel;
     pixel.packed = color;
-
-    return pixel;
-}
-
-//
-// scg_color_create implementation
-//
-scg_color scg_color_create(float32_t r, float32_t g, float32_t b) {
-    return (scg_color){r, g, b, 1.0f};
-}
-
-//
-// scg_rgb_to_pixel implementation
-//
-
-scg_pixel scg_color_to_pixel(scg_color color) {
-    scg_pixel pixel;
-    pixel.color.r = (uint8_t)scg_min_float32(color.r * 255.0f, 255.0f);
-    pixel.color.g = (uint8_t)scg_min_float32(color.g * 255.0f, 255.0f);
-    pixel.color.b = (uint8_t)scg_min_float32(color.b * 255.0f, 255.0f);
-    pixel.color.a = (uint8_t)scg_min_float32(color.a * 255.0f, 255.0f);
 
     return pixel;
 }
@@ -588,7 +549,7 @@ static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
 
 scg_return_status scg_screen_create(scg_screen *screen, const char *title,
                                     int width, int height, int scale,
-                                    int fullscreen) {
+                                    bool_t fullscreen) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         return scg__return_status_failure(SDL_GetError());
     }
@@ -605,7 +566,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
         return scg__return_status_failure(SDL_GetError());
     }
 
-    if (fullscreen) {
+    if (fullscreen == SCG_TRUE) {
         SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
     }
 
@@ -652,7 +613,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
     screen->pitch = screen->width * sizeof(uint32_t);
     screen->blend_mode = SCG_BLEND_MODE_NONE;
     screen->frame_metrics.update_counter = scg_get_performance_counter();
-    screen->is_running = 1;
+    screen->is_running = SCG_TRUE;
 
     return scg__return_status_success();
 }
@@ -661,17 +622,17 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
 // scg_screen_is_running implementation
 //
 
-int scg_screen_is_running(scg_screen *screen) {
+bool_t scg_screen_is_running(scg_screen *screen) {
     SDL_Event event;
 
     SDL_PollEvent(&event);
     switch (event.type) {
     case SDL_QUIT:
-        screen->is_running = 0;
+        screen->is_running = SCG_FALSE;
         break;
     }
 
-    return screen->is_running;
+    return screen->is_running == SCG_TRUE;
 }
 
 //
@@ -721,8 +682,8 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
 // scg_screen_clear implementation
 //
 
-void scg_screen_clear(scg_screen *screen, scg_color color) {
-    uint32_t pixel = scg_color_to_pixel(color).packed;
+void scg_screen_clear(scg_screen *screen, scg_pixel color) {
+    uint32_t pixel = color.packed;
     int num_pixels = screen->total_num_pixels;
 
     for (int i = 0; i < num_pixels; ++i) {
@@ -734,25 +695,19 @@ void scg_screen_clear(scg_screen *screen, scg_color color) {
 // scg_screen_draw_line implementation
 //
 
-void scg_screen_draw_line(scg_screen *screen, float32_t px0, float32_t py0,
-                          float32_t px1, float32_t py1, scg_color color) {
-    int x0 = (int)px0;
-    int y0 = (int)py0;
-    int x1 = (int)px1;
-    int y1 = (int)py1;
-
-    scg_pixel pixel = scg_color_to_pixel(color);
-    int dx = abs(x1 - x0);
-    int dy = abs(y1 - y0);
+void scg_screen_draw_line(scg_screen *screen, int px0, int py0, int px1,
+                          int py1, scg_pixel color) {
+    int dx = abs(px1 - px0);
+    int dy = abs(py1 - py0);
 
     // Line is vertical
     if (dx == 0) {
-        if (y1 < y0) {
-            scg_swap_int(&y0, &y1);
+        if (py1 < py0) {
+            scg_swap_int(&py0, &py1);
         }
 
-        for (int y = y0; y <= y1; y++) {
-            scg_screen_set_pixel(screen, x0, y, pixel);
+        for (int y = py0; y <= py1; y++) {
+            scg_screen_set_pixel(screen, px0, y, color);
         }
 
         return;
@@ -760,37 +715,37 @@ void scg_screen_draw_line(scg_screen *screen, float32_t px0, float32_t py0,
 
     // Line is horizontal
     if (dy == 0) {
-        if (x1 < x0) {
-            scg_swap_int(&x0, &x1);
+        if (px1 < px0) {
+            scg_swap_int(&px0, &px1);
         }
 
-        for (int x = x0; x <= x1; x++) {
-            scg_screen_set_pixel(screen, x, y0, pixel);
+        for (int x = px0; x <= px1; x++) {
+            scg_screen_set_pixel(screen, x, py0, color);
         }
 
         return;
     }
 
-    int step_x = x0 < x1 ? 1 : -1;
-    int step_y = y0 < y1 ? 1 : -1;
+    int step_x = px0 < px1 ? 1 : -1;
+    int step_y = py0 < py1 ? 1 : -1;
     int err = (dx > dy ? dx : -dy) / 2;
     int e2 = 0;
 
     for (;;) {
-        scg_screen_set_pixel(screen, x0, y0, pixel);
+        scg_screen_set_pixel(screen, px0, py0, color);
 
-        if (x0 == x1 && y0 == y1) {
+        if (px0 == px1 && py0 == py1) {
             break;
         }
 
         e2 = err;
         if (e2 > -dx) {
             err -= dy;
-            x0 += step_x;
+            px0 += step_x;
         }
         if (e2 < dy) {
             err += dx;
-            y0 += step_y;
+            py0 += step_y;
         }
     }
 }
@@ -799,8 +754,8 @@ void scg_screen_draw_line(scg_screen *screen, float32_t px0, float32_t py0,
 // scg_screen_draw_rect_implementation
 //
 
-void scg_screen_draw_rect(scg_screen *screen, float32_t px, float32_t py,
-                          float32_t width, float32_t height, scg_color color) {
+void scg_screen_draw_rect(scg_screen *screen, int px, int py, int width,
+                          int height, scg_pixel color) {
     scg_screen_draw_line(screen, px, py, px + width, py, color);
     scg_screen_draw_line(screen, px, py, px, py + height, color);
     scg_screen_draw_line(screen, px, py + height, px + width, py + height,
@@ -827,13 +782,14 @@ void scg_polygon_create_points(int num_points, float32_t out[num_points][2],
 // scg_screen_draw_polygon implementation
 //
 
-void scg_screen_draw_polygon(scg_screen *screen, float32_t px, float32_t py,
+void scg_screen_draw_polygon(scg_screen *screen, int px, int py,
                              float32_t points[][2], int num_points,
-                             scg_color color) {
+                             scg_pixel color) {
     for (int i = 0; i < num_points; i++) {
-        scg_screen_draw_line(screen, px + points[i][0], py + points[i][1],
-                             px + points[(i + 1) % num_points][0],
-                             py + points[(i + 1) % num_points][1], color);
+        scg_screen_draw_line(
+            screen, px + (int)(points[i][0]), py + (int)(points[i][1]),
+            px + (int)(points[(i + 1) % num_points][0]),
+            py + (int)(points[(i + 1) % num_points][1]), color);
     }
 }
 
@@ -841,18 +797,18 @@ void scg_screen_draw_polygon(scg_screen *screen, float32_t px, float32_t py,
 // scg_screen_draw_image implementation
 //
 
-void scg_screen_draw_image(scg_screen *screen, scg_image image, float32_t px,
-                           float32_t py) {
-    float32_t image_w = image.width;
-    float32_t image_h = image.height;
+void scg_screen_draw_image(scg_screen *screen, scg_image image, int px,
+                           int py) {
+    int image_w = image.width;
+    int image_h = image.height;
 
-    for (float32_t i = 0; i < image_h; i++) {
-        for (float32_t j = 0; j < image_w; j++) {
+    for (int i = 0; i < image_h; i++) {
+        for (int j = 0; j < image_w; j++) {
             scg_pixel pixel;
-            pixel.packed = image.pixels[scg__map_row_col_to_index(
-                (int)(j + 0.5f), (int)(i + 0.5f), image_w)];
+            pixel.packed =
+                image.pixels[scg__map_row_col_to_index(j, i, image_w)];
 
-            scg_screen_set_pixel(screen, (int)(px + j), (int)(py + i), pixel);
+            scg_screen_set_pixel(screen, px + j, py + i, pixel);
         }
     }
 }
@@ -862,16 +818,12 @@ void scg_screen_draw_image(scg_screen *screen, scg_image image, float32_t px,
 //
 
 void scg_screen_draw_image_with_transform(scg_screen *screen, scg_image image,
-                                          float32_t px, float32_t py,
-                                          float32_t angle, float32_t sx,
-                                          float32_t sy, float32_t ax,
-                                          float32_t ay) {
+                                          int px, int py, float32_t angle,
+                                          float32_t sx, float32_t sy) {
     if (sx <= 0.0f)
         sx = 1.0f;
     if (sy <= 0.0f)
         sy = 1.0f;
-    ax = scg_clamp_float32(ax, 0.0f, 1.0f);
-    ay = scg_clamp_float32(ay, 0.0f, 1.0f);
 
     float32_t image_w = image.width;
     float32_t image_h = image.height;
@@ -886,13 +838,10 @@ void scg_screen_draw_image_with_transform(scg_screen *screen, scg_image image,
     float32_t s = sinf(-angle);
     float32_t c = cosf(-angle);
 
-    px -= image_sw * ax;
-    py -= image_sh * ay;
-
-    for (float32_t i = 0; i < image_sh; i++) {
-        for (float32_t j = 0; j < image_sw; j++) {
-            float32_t image_x = j * ratio_x - origin_x;
-            float32_t image_y = i * ratio_y - origin_y;
+    for (int i = 0; i < image_sh; i++) {
+        for (int j = 0; j < image_sw; j++) {
+            float32_t image_x = (float32_t)j * ratio_x - origin_x;
+            float32_t image_y = (float32_t)i * ratio_y - origin_y;
             float32_t image_x_rot = (image_x * c - image_y * s) + origin_x;
             float32_t image_y_rot = (image_x * s + image_y * c) + origin_y;
 
@@ -902,21 +851,20 @@ void scg_screen_draw_image_with_transform(scg_screen *screen, scg_image image,
                 pixel.packed = image.pixels[scg__map_row_col_to_index(
                     (int)image_x_rot, (int)image_y_rot, image_w)];
 
-                scg_screen_set_pixel(screen, (int)(px + j), (int)(py + i),
-                                     pixel);
+                scg_screen_set_pixel(screen, px + j, py + i, pixel);
             }
         }
     }
 }
 
 static void scg__draw_char(scg_screen *screen, const char *char_bitmap, int x,
-                           int y, scg_pixel pixel) {
+                           int y, scg_pixel color) {
     for (int i = 0; i < SCG_FONT_SIZE; i++) {
         for (int j = 0; j < SCG_FONT_SIZE; j++) {
             int set = char_bitmap[i] & 1 << j;
 
             if (set) {
-                scg_screen_set_pixel(screen, x + j, y + i, pixel);
+                scg_screen_set_pixel(screen, x + j, y + i, color);
             }
         }
     }
@@ -931,9 +879,7 @@ static int scg__string_width(const char *str, int size) {
 //
 
 void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
-                            int anchor_to_center, scg_color color) {
-    scg_pixel pixel = scg_color_to_pixel(color);
-
+                            int anchor_to_center, scg_pixel color) {
     int current_x = x;
     int current_y = y;
 
@@ -949,7 +895,7 @@ void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
             char_code = 63; // draw '?' for unknown char
         }
         scg__draw_char(screen, scg__font8x8[char_code], current_x, current_y,
-                       pixel);
+                       color);
 
         current_x += SCG_FONT_SIZE + 1;
     }
@@ -965,7 +911,7 @@ void scg_screen_draw_fps(scg_screen *screen) {
     char buffer[bsize];
     snprintf(buffer, bsize + 1, "fps:%.2f", fps);
 
-    scg_color color = SCG_COLOR_GREEN;
+    scg_pixel color = SCG_COLOR_GREEN;
     float32_t target_fps = (float32_t)screen->target_frames_per_sec;
     if (fps < target_fps * 0.95) {
         color = SCG_COLOR_YELLOW;
@@ -997,7 +943,7 @@ void scg_screen_present(scg_screen *screen) {
         }
     }
 
-    Uint64 end_frame_counter = scg_get_performance_counter();
+    uint64_t end_frame_counter = scg_get_performance_counter();
 
     SDL_UpdateTexture(screen->sdl_texture, NULL, screen->pixels, screen->pitch);
     SDL_RenderClear(screen->sdl_renderer);
@@ -1036,7 +982,7 @@ void scg_screen_log_info(scg_screen *screen) {
 //
 
 void scg_screen_close(scg_screen *screen) {
-    screen->is_running = 0;
+    screen->is_running = SCG_FALSE;
 }
 
 //
@@ -1123,7 +1069,7 @@ void scg_sound_device_log_info(scg_sound_device *sound_device) {
 
 scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
                                             scg_sound *sound,
-                                            const char *filepath, int loop) {
+                                            const char *filepath, bool_t loop) {
     if (sound_device->num_sounds == SCG_MAX_SOUNDS) {
         return scg__return_status_failure("Maximum sounds reached");
     }
@@ -1141,7 +1087,7 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
     sound->buffer = buffer;
     sound->play_offset = 0;
     sound->end_position = buffer + length;
-    sound->is_playing = 0;
+    sound->is_playing = SCG_FALSE;
     sound->loop = loop;
 
     sound_device->sounds[sound_device->num_sounds++] = sound;
@@ -1154,8 +1100,8 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
 //
 
 void scg_sound_play(scg_sound *sound) {
-    if (!sound->is_playing) {
-        sound->is_playing = 1;
+    if (sound->is_playing == SCG_FALSE) {
+        sound->is_playing = SCG_TRUE;
     }
 }
 
@@ -1173,9 +1119,9 @@ void scg_sound_device_update(scg_sound_device *sound_device) {
     for (int i = 0; i < sound_device->num_sounds; i++) {
         scg_sound *sound = sound_device->sounds[i];
 
-        if (sound->is_playing) {
+        if (sound->is_playing == SCG_TRUE) {
             if (sound->buffer + sound->play_offset >= sound->end_position) {
-                if (!sound->loop) {
+                if (sound->loop == SCG_FALSE) {
                     sound->is_playing = 0;
                 }
                 sound->play_offset = 0;

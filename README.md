@@ -6,7 +6,7 @@ The library does all rendering in software by manually setting pixels. At the en
 
 ## Setup
 
-The library requires the SDL2.
+The library requires SDL2.
 
 ### OSX
 

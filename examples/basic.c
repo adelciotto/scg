@@ -14,7 +14,7 @@ static void update_and_draw(scg_screen *screen) {
         }
     }
 
-    scg_color color = SCG_COLOR_WHITE;
+    scg_pixel color = SCG_COLOR_WHITE;
     scg_screen_draw_string(screen, "Hello, World!", screen->width / 2,
                            screen->height / 2, 1, color);
 }
@@ -23,12 +23,12 @@ int main(void) {
     const int width = 400;
     const int height = 240;
     const int scale = 2;
-    const int fullscreen = 0;
+    const bool_t fullscreen = SCG_FALSE;
 
     scg_screen screen;
     scg_return_status return_status =
         scg_screen_create(&screen, "basic", width, height, scale, fullscreen);
-    if (return_status.is_error) {
+    if (return_status.is_error == SCG_TRUE) {
         scg_log_error("Failed to create screen. Error: %s",
                       return_status.error_msg);
         return -1;
@@ -41,7 +41,7 @@ int main(void) {
     scg_sound_device sound_device;
     return_status =
         scg_sound_device_create(&sound_device, screen.target_frames_per_sec);
-    if (return_status.is_error) {
+    if (return_status.is_error == SCG_TRUE) {
         scg_log_error("ailed to open sound device. Error: %s",
                       return_status.error_msg);
         return -1;
@@ -51,7 +51,7 @@ int main(void) {
     scg_sound music;
     return_status = scg_sound_create_from_wav(
         &sound_device, &music, "assets/arcade-music-loop-joshuaempyre.wav", 1);
-    if (return_status.is_error) {
+    if (return_status.is_error == SCG_TRUE) {
         scg_log_error("Failed to create sound. Error: %s",
                       return_status.error_msg);
         return -1;

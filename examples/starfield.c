@@ -5,60 +5,70 @@
 const int gscreen_w = 400;
 const int gscreen_h = 240;
 
-const int gnum_stars = 1000;
-const int gstar_size = 1;
-const float32_t gscroll_speed = 90.0f;
-const int gnum_layers = 10;
-
-typedef struct star {
+typedef struct star_t {
     float32_t x;
     float32_t y;
     int layer_index;
     float32_t layer_modifier;
     bool_t is_super_fast;
-} star;
+} star_t;
 
-static void init_stars(int num_stars, star stars[num_stars]) {
+typedef struct starfield_t {
+    int num_stars;
+    star_t *stars;
+    int num_layers;
+    int star_size;
+    float32_t scroll_speed;
+} starfield_t;
+
+static void init_starfield(starfield_t *starfield, int num_stars,
+                           int num_layers, float32_t scroll_speed) {
+    starfield->num_stars = num_stars;
+    starfield->num_layers = num_layers;
+    starfield->scroll_speed = scroll_speed;
+    starfield->star_size = 1;
+    starfield->stars = malloc(num_stars * sizeof(star_t));
+
     for (int i = 0; i < num_stars; i++) {
-        star *current = &stars[i];
+        star_t *current = &starfield->stars[i];
         bool_t is_super_fast = i % num_stars == 1;
 
         current->x = (float32_t)(rand() % gscreen_w);
         current->y = (float32_t)(rand() % gscreen_h);
-        current->layer_index = (is_super_fast) ? 10 : (i % gnum_layers) + 1;
+        current->layer_index = (is_super_fast) ? 10 : (i % num_layers) + 1;
         current->layer_modifier =
-            (float32_t)current->layer_index / (float32_t)gnum_layers;
+            (float32_t)current->layer_index / (float32_t)num_layers;
         current->is_super_fast = is_super_fast;
     }
 }
 
-static void update_stars(int num_stars, star stars[num_stars],
-                         float32_t animation_time) {
-    for (int i = 0; i < num_stars; i++) {
-        star *current = &stars[i];
+static void update_starfield(starfield_t starfield, float32_t animation_time) {
+    for (int i = 0; i < starfield.num_stars; i++) {
+        star_t *current = &starfield.stars[i];
         float32_t speed_modifier =
             (current->is_super_fast) ? 3.0f : current->layer_modifier;
-        current->y += (gscroll_speed * speed_modifier) * animation_time;
+        current->y +=
+            (starfield.scroll_speed * speed_modifier) * animation_time;
 
-        if (current->y > gscreen_h + gstar_size) {
+        if (current->y > gscreen_h + starfield.star_size) {
             current->x = (float32_t)(rand() % gscreen_w);
-            current->y = -(float32_t)gstar_size * 4.0f;
+            current->y = -(float32_t)starfield.star_size * 4.0f;
         }
     }
 }
 
-static void draw_stars(scg_screen *screen, int num_stars,
-                       star stars[num_stars]) {
-    for (int i = 0; i < num_stars; i++) {
+static void draw_starfield(scg_screen *screen, starfield_t starfield) {
+    for (int i = 0; i < starfield.num_stars; i++) {
         scg_pixel star_color = SCG_COLOR_WHITE;
-        star *current = &stars[i];
+        star_t *current = &starfield.stars[i];
 
         star_color.color.a =
             (uint8_t)((float32_t)star_color.color.a * current->layer_modifier);
 
         if (current->is_super_fast == SCG_TRUE) {
-            scg_screen_fill_rect(screen, current->x, current->y, gstar_size,
-                                 gstar_size * 2, star_color);
+            scg_screen_fill_rect(screen, current->x, current->y,
+                                 starfield.star_size, starfield.star_size * 2,
+                                 star_color);
         } else {
             scg_screen_set_pixel(screen, current->x, current->y, star_color);
         }
@@ -84,8 +94,12 @@ int main(void) {
 
     srand(scg_get_performance_counter());
 
-    star stars[gnum_stars];
-    init_stars(gnum_stars, stars);
+    const int num_stars = 1000;
+    const float32_t scroll_speed = 90.0f;
+    const int num_layers = 10;
+
+    starfield_t starfield;
+    init_starfield(&starfield, num_stars, num_layers, scroll_speed);
 
     scg_pixel clear_color = SCG_COLOR_BLACK;
 
@@ -94,12 +108,12 @@ int main(void) {
             scg_screen_close(&screen);
         }
 
-        update_stars(gnum_stars, stars, screen.target_time_per_frame_secs);
+        update_starfield(starfield, screen.target_time_per_frame_secs);
 
         scg_screen_clear(&screen, clear_color);
 
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_ALPHA);
-        draw_stars(&screen, gnum_stars, stars);
+        draw_starfield(&screen, starfield);
 
         scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_NONE);
         scg_screen_draw_fps(&screen);
@@ -108,6 +122,7 @@ int main(void) {
         scg_screen_present(&screen);
     }
 
+    free(starfield.stars);
     scg_screen_destroy(&screen);
     return 0;
 }

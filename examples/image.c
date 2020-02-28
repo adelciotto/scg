@@ -7,8 +7,8 @@ int main(void) {
     const int scale = 1;
     const bool_t fullscreen = SCG_FALSE;
 
-    scg_screen screen;
-    scg_return_status return_status =
+    scg_screen_t screen;
+    scg_return_status_t return_status =
         scg_screen_create(&screen, "image", width, height, scale, fullscreen);
     if (return_status.is_error == SCG_TRUE) {
         scg_log_error("Failed to create screen. Error: %s",
@@ -17,10 +17,10 @@ int main(void) {
     }
     scg_screen_log_info(&screen);
 
-    scg_keyboard keyboard;
+    scg_keyboard_t keyboard;
     scg_keyboard_create(&keyboard);
 
-    scg_image image;
+    scg_image_t image;
     return_status = scg_image_create_from_tga(&image, "assets/ball.tga");
     if (return_status.is_error == SCG_TRUE) {
         scg_log_error("Failed to create image. Error: %s",
@@ -28,8 +28,8 @@ int main(void) {
         return -1;
     }
 
-    scg_pixel clear_color = SCG_COLOR_95_GREEN;
-    scg_pixel text_color = SCG_COLOR_WHITE;
+    scg_pixel_t clear_color = SCG_COLOR_95_GREEN;
+    scg_pixel_t text_color = SCG_COLOR_WHITE;
 
     int center_image_x = screen.width / 2 - image.width / 2;
     int center_image_y = screen.height / 2 - image.height / 2;

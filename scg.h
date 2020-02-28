@@ -54,10 +54,10 @@
 #define scg_log_warn(...) SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
 #define scg_log_info(...) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
 
-typedef struct scg_return_status {
+typedef struct scg_return_status_t {
     bool_t is_error;
     const char *error_msg;
-} scg_return_status;
+} scg_return_status_t;
 
 extern void scg_swap_int(int *a, int *b);
 extern void scg_swap_float32(float32_t *a, float32_t *b);
@@ -72,7 +72,7 @@ extern uint64_t scg_get_performance_frequency(void);
 extern float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start);
 extern float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start);
 
-typedef union scg_pixel {
+typedef union scg_pixel_t {
     uint32_t packed;
     struct {
         uint8_t r;
@@ -80,10 +80,10 @@ typedef union scg_pixel {
         uint8_t b;
         uint8_t a;
     } color;
-} scg_pixel;
+} scg_pixel_t;
 
-extern scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b);
-extern scg_pixel scg_pixel_create_from_uint32(uint32_t packed);
+extern scg_pixel_t scg_pixel_create(uint8_t r, uint8_t g, uint8_t b);
+extern scg_pixel_t scg_pixel_create_from_uint32(uint32_t packed);
 
 #define SCG_COLOR_WHITE scg_pixel_create(255, 255, 255)
 #define SCG_COLOR_BLACK scg_pixel_create(0, 0, 0)
@@ -94,75 +94,75 @@ extern scg_pixel scg_pixel_create_from_uint32(uint32_t packed);
 #define SCG_COLOR_95_GREEN scg_pixel_create(0, 128, 128);
 #define SCG_COLOR_ICE_BLUE scg_pixel_create(153, 255, 255);
 
-typedef struct scg_image {
+typedef struct scg_image_t {
     int width;
     int height;
     uint32_t *pixels;
-} scg_image;
+} scg_image_t;
 
-extern scg_return_status scg_image_create_from_tga(scg_image *image,
-                                                   const char *filepath);
-extern void scg_image_destroy(scg_image *image);
+extern scg_return_status_t scg_image_create_from_tga(scg_image_t *image,
+                                                     const char *filepath);
+extern void scg_image_destroy(scg_image_t *image);
 
-typedef enum scg_blend_mode {
+typedef enum scg_blend_mode_t {
     SCG_BLEND_MODE_NONE,
     SCG_BLEND_MODE_MASK,
     SCG_BLEND_MODE_ALPHA
-} scg_blend_mode;
+} scg_blend_mode_t;
 
-typedef struct scg_screen scg_screen;
+typedef struct scg_screen_t scg_screen_t;
 
-scg_return_status scg_screen_create(scg_screen *screen, const char *title,
-                                    int width, int height, int scale,
-                                    bool_t fullscreen);
-extern bool_t scg_screen_is_running(scg_screen *screen);
-extern void scg_screen_set_blend_mode(scg_screen *screen,
-                                      scg_blend_mode blend_mode);
-extern void scg_screen_set_pixel(scg_screen *screen, int x, int y,
-                                 scg_pixel pixel);
-extern void scg_screen_clear(scg_screen *screen, scg_pixel color);
-extern void scg_screen_draw_line(scg_screen *screen, int px0, int py0, int px1,
-                                 int py1, scg_pixel color);
-extern void scg_screen_draw_rect(scg_screen *screen, int px, int py, int width,
-                                 int height, scg_pixel color);
-extern void scg_screen_fill_rect(scg_screen *screen, int px, int py, int width,
-                                 int height, scg_pixel color);
+scg_return_status_t scg_screen_create(scg_screen_t *screen, const char *title,
+                                      int width, int height, int scale,
+                                      bool_t fullscreen);
+extern bool_t scg_screen_is_running(scg_screen_t *screen);
+extern void scg_screen_set_blend_mode(scg_screen_t *screen,
+                                      scg_blend_mode_t blend_mode);
+extern void scg_screen_set_pixel(scg_screen_t *screen, int x, int y,
+                                 scg_pixel_t pixel);
+extern void scg_screen_clear(scg_screen_t *screen, scg_pixel_t color);
+extern void scg_screen_draw_line(scg_screen_t *screen, int px0, int py0,
+                                 int px1, int py1, scg_pixel_t color);
+extern void scg_screen_draw_rect(scg_screen_t *screen, int px, int py,
+                                 int width, int height, scg_pixel_t color);
+extern void scg_screen_fill_rect(scg_screen_t *screen, int px, int py,
+                                 int width, int height, scg_pixel_t color);
 // Maybe a temporary function...
 extern void scg_polygon_create_points(int num_points,
                                       float32_t out[num_points][2],
                                       float32_t radius);
-extern void scg_screen_draw_polygon(scg_screen *screen, int px, int py,
+extern void scg_screen_draw_polygon(scg_screen_t *screen, int px, int py,
                                     float32_t points[][2], int num_points,
-                                    scg_pixel color);
-extern void scg_screen_draw_image(scg_screen *screen, scg_image image, int px,
-                                  int py);
-extern void scg_screen_draw_image_with_transform(scg_screen *screen,
-                                                 scg_image image, int px,
+                                    scg_pixel_t color);
+extern void scg_screen_draw_image(scg_screen_t *screen, scg_image_t image,
+                                  int px, int py);
+extern void scg_screen_draw_image_with_transform(scg_screen_t *screen,
+                                                 scg_image_t image, int px,
                                                  int py, float32_t angle,
                                                  float32_t sx, float32_t sy);
-extern void scg_screen_draw_string(scg_screen *screen, const char *str, int x,
+extern void scg_screen_draw_string(scg_screen_t *screen, const char *str, int x,
                                    int y, int anchor_to_center,
-                                   scg_pixel color);
-extern void scg_screen_draw_fps(scg_screen *screen);
-extern void scg_screen_present(scg_screen *screen);
-extern void scg_screen_log_info(scg_screen *screen);
-extern void scg_screen_close(scg_screen *screen);
-extern void scg_screen_destroy(scg_screen *screen);
+                                   scg_pixel_t color);
+extern void scg_screen_draw_fps(scg_screen_t *screen);
+extern void scg_screen_present(scg_screen_t *screen);
+extern void scg_screen_log_info(scg_screen_t *screen);
+extern void scg_screen_close(scg_screen_t *screen);
+extern void scg_screen_destroy(scg_screen_t *screen);
 
-typedef struct scg_sound_device scg_sound_device;
-typedef struct scg_sound scg_sound;
+typedef struct scg_sound_device_t scg_sound_device_t;
+typedef struct scg_sound_t scg_sound_t;
 
-extern scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
-                                                 int frames_per_sec);
-extern void scg_sound_device_log_info(scg_sound_device *sound_device);
-extern scg_return_status
-scg_sound_create_from_wav(scg_sound_device *sound_device, scg_sound *sound,
+extern scg_return_status_t
+scg_sound_device_create(scg_sound_device_t *sound_device, int frames_per_sec);
+extern void scg_sound_device_log_info(scg_sound_device_t *sound_device);
+extern scg_return_status_t
+scg_sound_create_from_wav(scg_sound_device_t *sound_device, scg_sound_t *sound,
                           const char *filepath, bool_t loop);
-extern void scg_sound_play(scg_sound *sound);
-extern void scg_sound_device_update(scg_sound_device *sound_device);
-extern void scg_sound_device_destroy(scg_sound_device *sound_device);
+extern void scg_sound_play(scg_sound_t *sound);
+extern void scg_sound_device_update(scg_sound_device_t *sound_device);
+extern void scg_sound_device_destroy(scg_sound_device_t *sound_device);
 
-typedef enum scg_key_code {
+typedef enum scg_key_code_t {
     SCG_KEY_UP = SDL_SCANCODE_UP,
     SCG_KEY_DOWN = SDL_SCANCODE_DOWN,
     SCG_KEY_LEFT = SDL_SCANCODE_LEFT,
@@ -172,16 +172,18 @@ typedef enum scg_key_code {
     SCG_KEY_Z = SDL_SCANCODE_Z,
     SCG_KEY_SPACE = SDL_SCANCODE_SPACE,
     SCG_KEY_ESCAPE = SDL_SCANCODE_ESCAPE
-} scg_key_code;
+} scg_key_code_t;
 
-typedef struct scg_keyboard scg_keyboard;
+typedef struct scg_keyboard_t scg_keyboard_t;
 
-extern void scg_keyboard_create(scg_keyboard *keyboard);
-extern int scg_keyboard_is_key_down(scg_keyboard *keyboard, scg_key_code code);
-extern int scg_keyboard_is_key_up(scg_keyboard *keyboard, scg_key_code code);
-extern int scg_keyboard_is_key_triggered(scg_keyboard *keyboard,
-                                         scg_key_code code);
-extern void scg_keyboard_update(scg_keyboard *keyboard);
+extern void scg_keyboard_create(scg_keyboard_t *keyboard);
+extern int scg_keyboard_is_key_down(scg_keyboard_t *keyboard,
+                                    scg_key_code_t code);
+extern int scg_keyboard_is_key_up(scg_keyboard_t *keyboard,
+                                  scg_key_code_t code);
+extern int scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
+                                         scg_key_code_t code);
+extern void scg_keyboard_update(scg_keyboard_t *keyboard);
 
 ///////////////
 //
@@ -190,12 +192,12 @@ extern void scg_keyboard_update(scg_keyboard *keyboard);
 
 #define SCG_MAX_SOUNDS 16 // TODO: use linked list for sounds?
 
-struct scg_screen {
+struct scg_screen_t {
     const char *title;
     int width;
     int height;
     int scale;
-    scg_blend_mode blend_mode;
+    scg_blend_mode_t blend_mode;
 
     int target_frames_per_sec;
     float64_t target_time_per_frame_secs;
@@ -217,7 +219,7 @@ struct scg_screen {
     int total_num_pixels;
 };
 
-struct scg_sound {
+struct scg_sound_t {
     int device_id;
     SDL_AudioSpec sdl_spec;
     uint32_t length;
@@ -228,7 +230,7 @@ struct scg_sound {
     bool_t loop;
 };
 
-struct scg_sound_device {
+struct scg_sound_device_t {
     SDL_AudioDeviceID device_id;
     int freq;
     uint8_t channels;
@@ -238,11 +240,11 @@ struct scg_sound_device {
     uint32_t buffer_size;
     uint8_t *buffer;
 
-    scg_sound *sounds[SCG_MAX_SOUNDS];
+    scg_sound_t *sounds[SCG_MAX_SOUNDS];
     int num_sounds;
 };
 
-struct scg_keyboard {
+struct scg_keyboard_t {
     const uint8_t *current_key_states;
     uint8_t previous_key_states[SDL_NUM_SCANCODES];
 };
@@ -264,12 +266,12 @@ struct scg_keyboard {
 
 extern const char scg__font8x8[128][SCG_FONT_SIZE];
 
-static scg_return_status scg__return_status_failure(const char *error_msg) {
-    return (scg_return_status){SCG_TRUE, error_msg};
+static scg_return_status_t scg__return_status_failure(const char *error_msg) {
+    return (scg_return_status_t){SCG_TRUE, error_msg};
 }
 
-static scg_return_status scg__return_status_success(void) {
-    return (scg_return_status){SCG_FALSE, ""};
+static scg_return_status_t scg__return_status_success(void) {
+    return (scg_return_status_t){SCG_FALSE, ""};
 }
 
 static const char *scg__sprintf(const char *fmt, ...) {
@@ -389,8 +391,8 @@ float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
 // scg_pixel_create implementation
 //
 
-scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b) {
-    scg_pixel pixel;
+scg_pixel_t scg_pixel_create(uint8_t r, uint8_t g, uint8_t b) {
+    scg_pixel_t pixel;
     pixel.color.r = r;
     pixel.color.g = g;
     pixel.color.b = b;
@@ -403,8 +405,8 @@ scg_pixel scg_pixel_create(uint8_t r, uint8_t g, uint8_t b) {
 // scg_pixel_create_from_uint32 implementation
 //
 
-scg_pixel scg_pixel_create_from_uint32(uint32_t color) {
-    scg_pixel pixel;
+scg_pixel_t scg_pixel_create_from_uint32(uint32_t color) {
+    scg_pixel_t pixel;
     pixel.packed = color;
 
     return pixel;
@@ -460,8 +462,8 @@ typedef struct scg__tga_header {
 // scg_image_create_from_tga implementation
 //
 
-scg_return_status scg_image_create_from_tga(scg_image *image,
-                                            const char *filepath) {
+scg_return_status_t scg_image_create_from_tga(scg_image_t *image,
+                                              const char *filepath) {
     unsigned char *file_contents = scg__read_file(filepath);
     if (file_contents == NULL) {
         const char *error_msg =
@@ -515,7 +517,7 @@ scg_return_status scg_image_create_from_tga(scg_image *image,
             int src_index = scg__map_row_col_to_index(x, y, header->width);
 
             int byte_index = src_index * components;
-            scg_pixel pixel =
+            scg_pixel_t pixel =
                 scg_pixel_create(pixels[byte_index + 2], pixels[byte_index + 1],
                                  pixels[byte_index]);
             if (components == 4) {
@@ -541,7 +543,7 @@ scg_return_status scg_image_create_from_tga(scg_image *image,
 // scg_image_destroy implementation
 //
 
-void scg_image_destroy(scg_image *image) {
+void scg_image_destroy(scg_image_t *image) {
     free(image->pixels);
 }
 
@@ -559,9 +561,9 @@ static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
 // scg_screen_create implementation
 //
 
-scg_return_status scg_screen_create(scg_screen *screen, const char *title,
-                                    int width, int height, int scale,
-                                    bool_t fullscreen) {
+scg_return_status_t scg_screen_create(scg_screen_t *screen, const char *title,
+                                      int width, int height, int scale,
+                                      bool_t fullscreen) {
     if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
         return scg__return_status_failure(SDL_GetError());
     }
@@ -634,7 +636,7 @@ scg_return_status scg_screen_create(scg_screen *screen, const char *title,
 // scg_screen_is_running implementation
 //
 
-bool_t scg_screen_is_running(scg_screen *screen) {
+bool_t scg_screen_is_running(scg_screen_t *screen) {
     SDL_Event event;
 
     SDL_PollEvent(&event);
@@ -651,7 +653,8 @@ bool_t scg_screen_is_running(scg_screen *screen) {
 // scg_screen_set_blend_mode implementation
 //
 
-void scg_screen_set_blend_mode(scg_screen *screen, scg_blend_mode blend_mode) {
+void scg_screen_set_blend_mode(scg_screen_t *screen,
+                               scg_blend_mode_t blend_mode) {
     screen->blend_mode = blend_mode;
 }
 
@@ -659,7 +662,8 @@ void scg_screen_set_blend_mode(scg_screen *screen, scg_blend_mode blend_mode) {
 // scg_screen_set_pixel implementation
 //
 
-void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
+void scg_screen_set_pixel(scg_screen_t *screen, int x, int y,
+                          scg_pixel_t pixel) {
     if (x >= 0 && x < screen->width && y >= 0 && y < screen->height) {
         int index = scg__map_row_col_to_index(x, y, screen->width);
 
@@ -670,7 +674,7 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
         }
 
         if (screen->blend_mode == SCG_BLEND_MODE_ALPHA) {
-            scg_pixel d = scg_pixel_create_from_uint32(screen->pixels[index]);
+            scg_pixel_t d = scg_pixel_create_from_uint32(screen->pixels[index]);
             float32_t a = (float32_t)(pixel.color.a / 255.0f);
             float32_t c = 1.0f - a;
             float32_t r =
@@ -694,7 +698,7 @@ void scg_screen_set_pixel(scg_screen *screen, int x, int y, scg_pixel pixel) {
 // scg_screen_clear implementation
 //
 
-void scg_screen_clear(scg_screen *screen, scg_pixel color) {
+void scg_screen_clear(scg_screen_t *screen, scg_pixel_t color) {
     uint32_t pixel = color.packed;
     int num_pixels = screen->total_num_pixels;
 
@@ -707,8 +711,8 @@ void scg_screen_clear(scg_screen *screen, scg_pixel color) {
 // scg_screen_draw_line implementation
 //
 
-void scg_screen_draw_line(scg_screen *screen, int px0, int py0, int px1,
-                          int py1, scg_pixel color) {
+void scg_screen_draw_line(scg_screen_t *screen, int px0, int py0, int px1,
+                          int py1, scg_pixel_t color) {
     int dx = abs(px1 - px0);
     int dy = abs(py1 - py0);
 
@@ -766,8 +770,8 @@ void scg_screen_draw_line(scg_screen *screen, int px0, int py0, int px1,
 // scg_screen_draw_rect_implementation
 //
 
-void scg_screen_draw_rect(scg_screen *screen, int px, int py, int width,
-                          int height, scg_pixel color) {
+void scg_screen_draw_rect(scg_screen_t *screen, int px, int py, int width,
+                          int height, scg_pixel_t color) {
     scg_screen_draw_line(screen, px, py, px + width, py, color);
     scg_screen_draw_line(screen, px, py, px, py + height, color);
     scg_screen_draw_line(screen, px, py + height, px + width, py + height,
@@ -780,8 +784,8 @@ void scg_screen_draw_rect(scg_screen *screen, int px, int py, int width,
 // scg_screen_fill_rect_implementation
 //
 
-void scg_screen_fill_rect(scg_screen *screen, int px, int py, int width,
-                          int height, scg_pixel color) {
+void scg_screen_fill_rect(scg_screen_t *screen, int px, int py, int width,
+                          int height, scg_pixel_t color) {
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
             scg_screen_set_pixel(screen, px + j, py + i, color);
@@ -807,9 +811,9 @@ void scg_polygon_create_points(int num_points, float32_t out[num_points][2],
 // scg_screen_draw_polygon implementation
 //
 
-void scg_screen_draw_polygon(scg_screen *screen, int px, int py,
+void scg_screen_draw_polygon(scg_screen_t *screen, int px, int py,
                              float32_t points[][2], int num_points,
-                             scg_pixel color) {
+                             scg_pixel_t color) {
     for (int i = 0; i < num_points; i++) {
         scg_screen_draw_line(
             screen, px + (int)(points[i][0]), py + (int)(points[i][1]),
@@ -822,14 +826,14 @@ void scg_screen_draw_polygon(scg_screen *screen, int px, int py,
 // scg_screen_draw_image implementation
 //
 
-void scg_screen_draw_image(scg_screen *screen, scg_image image, int px,
+void scg_screen_draw_image(scg_screen_t *screen, scg_image_t image, int px,
                            int py) {
     int image_w = image.width;
     int image_h = image.height;
 
     for (int i = 0; i < image_h; i++) {
         for (int j = 0; j < image_w; j++) {
-            scg_pixel pixel;
+            scg_pixel_t pixel;
             pixel.packed =
                 image.pixels[scg__map_row_col_to_index(j, i, image_w)];
 
@@ -842,9 +846,10 @@ void scg_screen_draw_image(scg_screen *screen, scg_image image, int px,
 // scg_screen_draw_image_with_transform implementation
 //
 
-void scg_screen_draw_image_with_transform(scg_screen *screen, scg_image image,
-                                          int px, int py, float32_t angle,
-                                          float32_t sx, float32_t sy) {
+void scg_screen_draw_image_with_transform(scg_screen_t *screen,
+                                          scg_image_t image, int px, int py,
+                                          float32_t angle, float32_t sx,
+                                          float32_t sy) {
     if (sx <= 0.0f)
         sx = 1.0f;
     if (sy <= 0.0f)
@@ -872,7 +877,7 @@ void scg_screen_draw_image_with_transform(scg_screen *screen, scg_image image,
 
             if (image_x_rot >= 0 && image_x_rot < image_w && image_y_rot >= 0 &&
                 image_y_rot < image_h) {
-                scg_pixel pixel;
+                scg_pixel_t pixel;
                 pixel.packed = image.pixels[scg__map_row_col_to_index(
                     (int)image_x_rot, (int)image_y_rot, image_w)];
 
@@ -882,8 +887,8 @@ void scg_screen_draw_image_with_transform(scg_screen *screen, scg_image image,
     }
 }
 
-static void scg__draw_char(scg_screen *screen, const char *char_bitmap, int x,
-                           int y, scg_pixel color) {
+static void scg__draw_char(scg_screen_t *screen, const char *char_bitmap, int x,
+                           int y, scg_pixel_t color) {
     for (int i = 0; i < SCG_FONT_SIZE; i++) {
         for (int j = 0; j < SCG_FONT_SIZE; j++) {
             int set = char_bitmap[i] & 1 << j;
@@ -903,8 +908,8 @@ static int scg__string_width(const char *str, int size) {
 // scg_screen_draw_string implementation
 //
 
-void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
-                            int anchor_to_center, scg_pixel color) {
+void scg_screen_draw_string(scg_screen_t *screen, const char *str, int x, int y,
+                            int anchor_to_center, scg_pixel_t color) {
     int current_x = x;
     int current_y = y;
 
@@ -930,13 +935,13 @@ void scg_screen_draw_string(scg_screen *screen, const char *str, int x, int y,
 // scg_screen_draw_fps implementation
 //
 
-void scg_screen_draw_fps(scg_screen *screen) {
+void scg_screen_draw_fps(scg_screen_t *screen) {
     float32_t fps = screen->frame_metrics.fps;
     ssize_t bsize = snprintf(NULL, 0, "fps:%.2f", fps);
     char buffer[bsize];
     snprintf(buffer, bsize + 1, "fps:%.2f", fps);
 
-    scg_pixel color = SCG_COLOR_GREEN;
+    scg_pixel_t color = SCG_COLOR_GREEN;
     float32_t target_fps = (float32_t)screen->target_frames_per_sec;
     if (fps < target_fps * 0.95) {
         color = SCG_COLOR_YELLOW;
@@ -952,7 +957,7 @@ void scg_screen_draw_fps(scg_screen *screen) {
 // scg_screen_present implementation
 //
 
-void scg_screen_present(scg_screen *screen) {
+void scg_screen_present(scg_screen_t *screen) {
     // Wait until we have reached the target amount of time per frame (e.g 60hz,
     // ~16ms). Spinning in a while loop seems to be the most accurate way to do
     // this, as trying to use SDL_Delay (sleeping) is dependant on other
@@ -996,7 +1001,7 @@ void scg_screen_present(scg_screen *screen) {
 // scg_screen_log_info implementation
 //
 
-void scg_screen_log_info(scg_screen *screen) {
+void scg_screen_log_info(scg_screen_t *screen) {
     scg_log_info("screen has w:%d, h:%d, scale:%d, target fps:%d",
                  screen->width, screen->height, screen->scale,
                  screen->target_frames_per_sec);
@@ -1006,7 +1011,7 @@ void scg_screen_log_info(scg_screen *screen) {
 // scg_screen_close implementation
 //
 
-void scg_screen_close(scg_screen *screen) {
+void scg_screen_close(scg_screen_t *screen) {
     screen->is_running = SCG_FALSE;
 }
 
@@ -1014,7 +1019,7 @@ void scg_screen_close(scg_screen *screen) {
 // scg_screen_destroy implementation
 //
 
-void scg_screen_destroy(scg_screen *screen) {
+void scg_screen_destroy(scg_screen_t *screen) {
     free(screen->pixels);
     SDL_DestroyTexture(screen->sdl_texture);
     SDL_DestroyRenderer(screen->sdl_renderer);
@@ -1026,8 +1031,8 @@ void scg_screen_destroy(scg_screen *screen) {
 // scg_sound_device_create implementation
 //
 
-scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
-                                          int frames_per_sec) {
+scg_return_status_t scg_sound_device_create(scg_sound_device_t *sound_device,
+                                            int frames_per_sec) {
     SDL_AudioSpec want, have;
 
     int channels = 2;
@@ -1080,7 +1085,7 @@ scg_return_status scg_sound_device_create(scg_sound_device *sound_device,
 // scg_sound_device_log_info implementation
 //
 
-void scg_sound_device_log_info(scg_sound_device *sound_device) {
+void scg_sound_device_log_info(scg_sound_device_t *sound_device) {
     scg_log_info("sound device has id:%d, channels:%d, samples/sec:%d, "
                  "samples/frame:%d, bytes/sample:%d",
                  sound_device->device_id, sound_device->channels,
@@ -1092,9 +1097,10 @@ void scg_sound_device_log_info(scg_sound_device *sound_device) {
 // scg_sound_create implementation
 //
 
-scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
-                                            scg_sound *sound,
-                                            const char *filepath, bool_t loop) {
+scg_return_status_t scg_sound_create_from_wav(scg_sound_device_t *sound_device,
+                                              scg_sound_t *sound,
+                                              const char *filepath,
+                                              bool_t loop) {
     if (sound_device->num_sounds == SCG_MAX_SOUNDS) {
         return scg__return_status_failure("Maximum sounds reached");
     }
@@ -1124,7 +1130,7 @@ scg_return_status scg_sound_create_from_wav(scg_sound_device *sound_device,
 // scg_sound_play implementation
 //
 
-void scg_sound_play(scg_sound *sound) {
+void scg_sound_play(scg_sound_t *sound) {
     if (sound->is_playing == SCG_FALSE) {
         sound->is_playing = SCG_TRUE;
     }
@@ -1134,7 +1140,7 @@ void scg_sound_play(scg_sound *sound) {
 // scg_sound_device_update implementation
 //
 
-void scg_sound_device_update(scg_sound_device *sound_device) {
+void scg_sound_device_update(scg_sound_device_t *sound_device) {
     memset(sound_device->buffer, 0, sound_device->buffer_size);
 
     uint32_t target_queue_bytes = sound_device->buffer_size;
@@ -1142,7 +1148,7 @@ void scg_sound_device_update(scg_sound_device *sound_device) {
         target_queue_bytes - SDL_GetQueuedAudioSize(sound_device->device_id);
 
     for (int i = 0; i < sound_device->num_sounds; i++) {
-        scg_sound *sound = sound_device->sounds[i];
+        scg_sound_t *sound = sound_device->sounds[i];
 
         if (sound->is_playing == SCG_TRUE) {
             if (sound->buffer + sound->play_offset >= sound->end_position) {
@@ -1171,7 +1177,7 @@ void scg_sound_device_update(scg_sound_device *sound_device) {
 // scg_sound_device_destroy_sounds implementation
 //
 
-void scg_sound_device_destroy(scg_sound_device *sound_device) {
+void scg_sound_device_destroy(scg_sound_device_t *sound_device) {
     SDL_PauseAudioDevice(sound_device->device_id, 1);
     SDL_ClearQueuedAudio(sound_device->device_id);
 
@@ -1187,7 +1193,7 @@ void scg_sound_device_destroy(scg_sound_device *sound_device) {
 // scg_keyboard_create implementation
 //
 
-void scg_keyboard_create(scg_keyboard *keyboard) {
+void scg_keyboard_create(scg_keyboard_t *keyboard) {
     keyboard->current_key_states = SDL_GetKeyboardState(NULL);
     memset(keyboard->previous_key_states, 0,
            sizeof(uint8_t) * SDL_NUM_SCANCODES);
@@ -1197,7 +1203,7 @@ void scg_keyboard_create(scg_keyboard *keyboard) {
 // scg_keyboard_is_key_down implementation
 //
 
-int scg_keyboard_is_key_down(scg_keyboard *keyboard, scg_key_code key) {
+int scg_keyboard_is_key_down(scg_keyboard_t *keyboard, scg_key_code_t key) {
     return keyboard->current_key_states[key] == 1;
 }
 
@@ -1205,7 +1211,7 @@ int scg_keyboard_is_key_down(scg_keyboard *keyboard, scg_key_code key) {
 // scg_keyboard_is_key_up implementation
 //
 
-int scg_keyboard_is_key_up(scg_keyboard *keyboard, scg_key_code key) {
+int scg_keyboard_is_key_up(scg_keyboard_t *keyboard, scg_key_code_t key) {
     return keyboard->current_key_states[key] == 0;
 }
 
@@ -1213,7 +1219,8 @@ int scg_keyboard_is_key_up(scg_keyboard *keyboard, scg_key_code key) {
 // scg_keyboard_is_key_triggered implementation
 //
 
-int scg_keyboard_is_key_triggered(scg_keyboard *keyboard, scg_key_code key) {
+int scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
+                                  scg_key_code_t key) {
     return keyboard->previous_key_states[key] == 0 &&
            keyboard->current_key_states[key] == 1;
 }
@@ -1222,7 +1229,7 @@ int scg_keyboard_is_key_triggered(scg_keyboard *keyboard, scg_key_code key) {
 // scg_keyboard_update implementation
 //
 
-void scg_keyboard_update(scg_keyboard *keyboard) {
+void scg_keyboard_update(scg_keyboard_t *keyboard) {
     memcpy(keyboard->previous_key_states, keyboard->current_key_states,
            sizeof(uint8_t) * SDL_NUM_SCANCODES);
 }

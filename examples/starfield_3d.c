@@ -66,9 +66,9 @@ static void update_starfield(starfield_t starfield, float32_t animation_time) {
     }
 }
 
-static void draw_starfield(scg_screen *screen, starfield_t starfield) {
+static void draw_starfield(scg_screen_t *screen, starfield_t starfield) {
     for (int i = 0; i < starfield.num_stars; i++) {
-        scg_pixel star_color = SCG_COLOR_WHITE;
+        scg_pixel_t star_color = SCG_COLOR_WHITE;
         star_t *current = &starfield.stars[i];
 
         float32_t shade =
@@ -92,8 +92,8 @@ int main(void) {
     const int screen_scale = 2;
     const bool_t fullscreen = SCG_FALSE;
 
-    scg_screen screen;
-    scg_return_status return_status =
+    scg_screen_t screen;
+    scg_return_status_t return_status =
         scg_screen_create(&screen, "starfield 3D", gscreen_w, gscreen_h,
                           screen_scale, fullscreen);
     if (return_status.is_error) {
@@ -103,7 +103,7 @@ int main(void) {
     }
     scg_screen_log_info(&screen);
 
-    scg_keyboard keyboard;
+    scg_keyboard_t keyboard;
     scg_keyboard_create(&keyboard);
 
     srand(scg_get_performance_counter());
@@ -115,7 +115,7 @@ int main(void) {
     starfield_t starfield;
     init_starfield(&starfield, num_stars, max_distance, world_speed);
 
-    scg_pixel clear_color = SCG_COLOR_BLACK;
+    scg_pixel_t clear_color = SCG_COLOR_BLACK;
 
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {

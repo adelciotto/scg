@@ -26,7 +26,7 @@ static void init_tunnel(int screen_w, int screen_h, int image_w, int image_h) {
     }
 }
 
-static void draw_tunnel(scg_screen *screen, scg_image image,
+static void draw_tunnel(scg_screen_t *screen, scg_image_t image,
                         float32_t elapsed_time) {
     int screen_w = screen->width;
     int screen_h = screen->height;
@@ -41,7 +41,7 @@ static void draw_tunnel(scg_screen *screen, scg_image image,
             int x = (distance_buffer[index] + shift_x) % image_w;
             int y = (angle_buffer[index] + shift_y) % image_h;
 
-            scg_pixel pixel;
+            scg_pixel_t pixel;
             pixel.packed = image.pixels[y * image_w + x];
 
             float32_t shade = shade_buffer[index];
@@ -59,8 +59,8 @@ int main(void) {
     const int scale = 2;
     const bool_t fullscreen = SCG_FALSE;
 
-    scg_screen screen;
-    scg_return_status return_status =
+    scg_screen_t screen;
+    scg_return_status_t return_status =
         scg_screen_create(&screen, "tunnel", width, height, scale, fullscreen);
     if (return_status.is_error == SCG_TRUE) {
         scg_log_error("Failed to create screen. Error: %s",
@@ -69,10 +69,10 @@ int main(void) {
     }
     scg_screen_log_info(&screen);
 
-    scg_keyboard keyboard;
+    scg_keyboard_t keyboard;
     scg_keyboard_create(&keyboard);
 
-    scg_image image;
+    scg_image_t image;
     return_status = scg_image_create_from_tga(&image, "assets/space.tga");
     if (return_status.is_error == SCG_TRUE) {
         scg_log_error("Failed to create image. Error: %s",

@@ -5,7 +5,7 @@
 #define PLASMA_SCALE SCG_PI * 2.0f
 #define PLASMA_SCALE_HALF PLASMA_SCALE * 0.5
 
-static void update_and_draw(scg_screen *screen, float32_t t) {
+static void update_and_draw(scg_screen_t *screen, float32_t t) {
     const int width = screen->width;
     const int height = screen->height;
 
@@ -30,7 +30,7 @@ static void update_and_draw(scg_screen *screen, float32_t t) {
                 fabs(sinf(val * SCG_PI + 2.0f * SCG_PI * 0.33f) * 0.5f + 0.5f);
             float32_t b =
                 fabs(sinf(val * SCG_PI + 4.0f * SCG_PI * 0.33f) * 0.5f + 0.5f);
-            scg_pixel color =
+            scg_pixel_t color =
                 scg_pixel_create((uint8_t)scg_min_float32(r * 255.0f, 255.0f),
                                  (uint8_t)scg_min_float32(g * 255.0f, 255.0f),
                                  (uint8_t)scg_min_float32(b * 255.0f, 255.0f));
@@ -46,8 +46,8 @@ int main(void) {
     const int scale = 2;
     const bool_t fullscreen = SCG_FALSE;
 
-    scg_screen screen;
-    scg_return_status return_status =
+    scg_screen_t screen;
+    scg_return_status_t return_status =
         scg_screen_create(&screen, "plasma", width, height, scale, fullscreen);
     if (return_status.is_error == SCG_TRUE) {
         scg_log_error("Failed to create screen. Error: %s",
@@ -56,7 +56,7 @@ int main(void) {
     }
     scg_screen_log_info(&screen);
 
-    scg_keyboard keyboard;
+    scg_keyboard_t keyboard;
     scg_keyboard_create(&keyboard);
 
     float32_t elapsed_time = 0.0f;

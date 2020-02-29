@@ -97,10 +97,10 @@ extern scg_pixel_t scg_pixel_create_from_uint32(uint32_t packed);
 typedef struct scg_image_t {
     int width;
     int height;
-    uint32_t *pixels;
+    scg_pixel_t *pixels;
 } scg_image_t;
 
-extern scg_return_status_t scg_image_create_from_tga(scg_image_t *image,
+extern scg_return_status_t scg_image_create_from_bmp(scg_image_t *image,
                                                      const char *filepath);
 extern void scg_image_destroy(scg_image_t *image);
 
@@ -412,129 +412,71 @@ scg_pixel_t scg_pixel_create_from_uint32(uint32_t color) {
     return pixel;
 }
 
-static unsigned char *scg__read_file(const char *filepath) {
-    FILE *file = fopen(filepath, "rb");
-    if (file == NULL) {
-        return NULL;
-    }
-
-    fseek(file, 0, SEEK_END);
-    uint64_t size = ftell(file);
-    rewind(file);
-
-    unsigned char *file_contents = malloc(size);
-    if (file_contents == NULL) {
-        return NULL;
-    }
-
-    size_t bytes_read = fread(file_contents, 1, size, file);
-    if (bytes_read != size) {
-        return NULL;
-    }
-
-    fclose(file);
-
-    return file_contents;
-}
-
 static int scg__map_row_col_to_index(int col, int row, int num_cols) {
     return row * num_cols + col;
 }
 
-#pragma pack(push, 1)
-typedef struct scg__tga_header {
-    uint8_t id_len;
-    uint8_t color_map_type;
-    uint8_t image_type_code;
-    uint16_t color_map_origin;
-    uint16_t color_map_length;
-    uint8_t color_map_num_bits;
-    uint16_t x_origin;
-    uint16_t y_origin;
-    uint16_t width;
-    uint16_t height;
-    uint8_t pixel_size;
-    uint8_t descriptor_byte;
-} scg__tga_header;
-#pragma pack(pop)
-
 //
-// scg_image_create_from_tga implementation
+// scg_image_create_from_bmp implementation
 //
 
-scg_return_status_t scg_image_create_from_tga(scg_image_t *image,
+scg_return_status_t scg_image_create_from_bmp(scg_image_t *image,
                                               const char *filepath) {
-    unsigned char *file_contents = scg__read_file(filepath);
-    if (file_contents == NULL) {
-        const char *error_msg =
-            scg__sprintf("Failed to read %s image file", filepath);
+    SDL_Surface *surface = SDL_LoadBMP(filepath);
+    if (surface == NULL) {
+        const char *error_msg = scg__sprintf("Failed to load %s image file. %s",
+                                             filepath, SDL_GetError());
         return scg__return_status_failure(error_msg);
     }
 
-    scg__tga_header *header = (scg__tga_header *)file_contents;
+    SDL_PixelFormat *pixel_format = surface->format;
 
-    if (header->color_map_type != 0) {
-        const char *error_msg =
-            scg__sprintf("Failed to parse %s image file. The color map type "
-                         "must be 0, got %u",
-                         filepath, header->color_map_type);
-        scg__return_status_failure(error_msg);
-    }
-    if (header->image_type_code != 2) {
-        const char *error_msg =
-            scg__sprintf("Failed to parse %s image file. The image type code "
-                         "must be 2, got %u",
-                         filepath, header->image_type_code);
-        scg__return_status_failure(error_msg);
-    }
-    if (header->pixel_size != 24 && header->pixel_size != 32) {
-        const char *error_msg =
-            scg__sprintf("Failed to parse %s image file. The pixel size must "
-                         "be 24 or 32, got %u",
-                         filepath, header->pixel_size);
-        scg__return_status_failure(error_msg);
+    if (pixel_format->BitsPerPixel != 32) {
+        const char *error_msg = scg__sprintf(
+            "Failed to load %s image file. The pixel format must be 32 bit",
+            filepath);
+        return scg__return_status_failure(error_msg);
     }
 
-    // Read past the image ID field and the color map data to the pixels.
-    // The color map data should always be empty for the subset of tga images we
-    // support.
-    unsigned char *pixels =
-        file_contents + sizeof(scg__tga_header) + header->id_len;
-    uint32_t *image_pixels =
-        malloc(header->width * header->height * sizeof(uint32_t));
-    if (image_pixels == NULL) {
-        const char *error_msg =
-            scg__sprintf("Failed to parse %s image file. Could not allocate "
-                         "memory for pixels",
-                         filepath);
-        scg__return_status_failure(error_msg);
+    uint32_t *surface_pixels = (uint32_t *)surface->pixels;
+    scg_pixel_t *image_pixels =
+        malloc(surface->w * surface->h * sizeof(*image_pixels));
+
+    for (int i = 0; i < surface->w * surface->h; i++) {
+        uint32_t packed = surface_pixels[i];
+        uint32_t temp;
+
+        temp = packed & pixel_format->Rmask;
+        temp = temp >> pixel_format->Rshift;
+        temp = temp << pixel_format->Rloss;
+        uint8_t red = (uint8_t)temp;
+
+        temp = packed & pixel_format->Gmask;
+        temp = temp >> pixel_format->Gshift;
+        temp = temp << pixel_format->Gloss;
+        uint8_t green = (uint8_t)temp;
+
+        temp = packed & pixel_format->Bmask;
+        temp = temp >> pixel_format->Bshift;
+        temp = temp << pixel_format->Bloss;
+        uint8_t blue = (uint8_t)temp;
+
+        temp = packed & pixel_format->Amask;
+        temp = temp >> pixel_format->Ashift;
+        temp = temp << pixel_format->Aloss;
+        uint8_t alpha = (uint8_t)temp;
+
+        scg_pixel_t pixel = scg_pixel_create(red, green, blue);
+        pixel.color.a = alpha;
+
+        image_pixels[i] = pixel;
     }
 
-    const int components = header->pixel_size / 8;
-
-    for (int y = 0; y < header->height; y++) {
-        for (int x = 0; x < header->width; x++) {
-            int src_index = scg__map_row_col_to_index(x, y, header->width);
-
-            int byte_index = src_index * components;
-            scg_pixel_t pixel =
-                scg_pixel_create(pixels[byte_index + 2], pixels[byte_index + 1],
-                                 pixels[byte_index]);
-            if (components == 4) {
-                pixel.color.a = pixels[byte_index + 3];
-            }
-
-            int dest_index = scg__map_row_col_to_index(
-                x, header->height - 1 - y, header->width);
-            image_pixels[dest_index] = pixel.packed;
-        }
-    }
-
-    image->width = header->width;
-    image->height = header->height;
+    image->width = surface->w;
+    image->height = surface->h;
     image->pixels = image_pixels;
 
-    free(file_contents);
+    SDL_FreeSurface(surface);
 
     return scg__return_status_success();
 }
@@ -833,10 +775,8 @@ void scg_screen_draw_image(scg_screen_t *screen, scg_image_t image, int px,
 
     for (int i = 0; i < image_h; i++) {
         for (int j = 0; j < image_w; j++) {
-            scg_pixel_t pixel;
-            pixel.packed =
+            scg_pixel_t pixel =
                 image.pixels[scg__map_row_col_to_index(j, i, image_w)];
-
             scg_screen_set_pixel(screen, px + j, py + i, pixel);
         }
     }
@@ -877,8 +817,7 @@ void scg_screen_draw_image_with_transform(scg_screen_t *screen,
 
             if (image_x_rot >= 0 && image_x_rot < image_w && image_y_rot >= 0 &&
                 image_y_rot < image_h) {
-                scg_pixel_t pixel;
-                pixel.packed = image.pixels[scg__map_row_col_to_index(
+                scg_pixel_t pixel = image.pixels[scg__map_row_col_to_index(
                     (int)image_x_rot, (int)image_y_rot, image_w)];
 
                 scg_screen_set_pixel(screen, px + j, py + i, pixel);

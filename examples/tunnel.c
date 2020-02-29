@@ -41,8 +41,7 @@ static void draw_tunnel(scg_screen_t *screen, scg_image_t image,
             int x = (distance_buffer[index] + shift_x) % image_w;
             int y = (angle_buffer[index] + shift_y) % image_h;
 
-            scg_pixel_t pixel;
-            pixel.packed = image.pixels[y * image_w + x];
+            scg_pixel_t pixel = image.pixels[y * image_w + x];
 
             float32_t shade = shade_buffer[index];
             pixel.color.r = (uint8_t)((float32_t)pixel.color.r * shade);
@@ -73,7 +72,7 @@ int main(void) {
     scg_keyboard_create(&keyboard);
 
     scg_image_t image;
-    return_status = scg_image_create_from_tga(&image, "assets/space.tga");
+    return_status = scg_image_create_from_bmp(&image, "assets/space.bmp");
     if (return_status.is_error == SCG_TRUE) {
         scg_log_error("Failed to create image. Error: %s",
                       return_status.error_msg);

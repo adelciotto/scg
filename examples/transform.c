@@ -21,7 +21,7 @@ int main(void) {
     scg_keyboard_create(&keyboard);
 
     scg_image_t image;
-    return_status = scg_image_create_from_tga(&image, "assets/ball.tga");
+    return_status = scg_image_create_from_bmp(&image, "assets/ball.bmp");
     if (return_status.is_error == SCG_TRUE) {
         scg_log_error("Failed to create image. Error: %s",
                       return_status.error_msg);

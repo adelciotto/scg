@@ -15,7 +15,7 @@ ifeq ($(PROFILE), 1)
 endif
 
 .PHONY: default
-default: basic plasma image transform rotozoom tunnel starfield starfield_3d
+default: basic plasma image transform rotozoom tunnel starfield starfield_3d voxel_space
 
 basic: examples/basic.c scg.h
 	$(CC) examples/basic.c -o basic $(CFLAGS) $(LDFLAGS) $(INCLUDES)
@@ -41,13 +41,16 @@ starfield: examples/starfield.c scg.h
 starfield_3d: examples/starfield_3d.c scg.h
 	$(CC) examples/starfield_3d.c -o starfield_3d $(CFLAGS) $(LDFLAGS) $(INCLUDES)
 
+voxel_space: examples/voxel_space.c scg.h
+	$(CC) examples/voxel_space.c -o voxel_space $(CFLAGS) $(LDFLAGS) $(INCLUDES)
+
 .PHONY: format
 format:
 	clang-format --verbose -i -style=file examples/*.c scg.h
 
 .PHONY: clean
 clean:
-	rm -f basic plasma image transform rotozoom tunnel starfield starfield_3d
+	rm -f basic plasma image transform rotozoom tunnel starfield starfield_3d voxel_space
 	rm -f **/*.o
 	rm -rf *.dSYM
 	rm -f gmon.out

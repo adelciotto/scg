@@ -1,3 +1,12 @@
+// Space image in this demo is by webtreats.
+// Profile link:
+// http://www.everystockphoto.com/photographer.php?photographer_id=71737 Image
+// link: http://www.everystockphoto.com/photo.php?imageId=9268254
+
+// Tunnel effect implemented with help from the following references:
+// - https://seancode.com/demofx/
+// - https://lodev.org/cgtutor/tunnel.html
+
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
@@ -12,7 +21,7 @@ static void init_tunnel(int screen_w, int screen_h, int image_w, int image_h) {
 
     for (int i = 0; i < screen_h; i++) {
         for (int j = 0; j < screen_w; j++) {
-            int index = i * screen_w + j;
+            int index = scg_pixel_index_from_xy(j, i, screen_w);
             float32_t dx = j - screen_w / 2;
             float32_t dy = i - screen_h / 2;
             float32_t dist = sqrtf(dx * dx + dy * dy);
@@ -21,7 +30,8 @@ static void init_tunnel(int screen_w, int screen_h, int image_w, int image_h) {
                 (uint32_t)(32.0f * (float32_t)image_h / dist) % image_h;
             angle_buffer[index] =
                 (uint32_t)(0.5f * (float32_t)image_w * atan2f(dy, dx) / SCG_PI);
-            shade_buffer[index] = scg_min_float32(dist, 255.0f) / 255.0f;
+            shade_buffer[index] =
+                scg_min_float32(16.0f + dist, 255.0f) / 255.0f;
         }
     }
 }
@@ -37,7 +47,7 @@ static void draw_tunnel(scg_screen_t *screen, scg_image_t image,
 
     for (int i = 0; i < screen_h; i++) {
         for (int j = 0; j < screen_w; j++) {
-            int index = i * screen_w + j;
+            int index = scg_pixel_index_from_xy(j, i, screen_w);
             int x = (distance_buffer[index] + shift_x) % image_w;
             int y = (angle_buffer[index] + shift_y) % image_h;
 

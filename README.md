@@ -48,6 +48,7 @@ Replace `{{example_name}}` with any of the following:
 * `tunnel`
 * `starfield`
 * `starfield_3d`
+* `voxel_space`
 
 By default all the examples are built with optimization flags. To build in debug mode, use the `DEBUG=1` flag.
 
@@ -63,10 +64,10 @@ make {{example_name}} DEBUG=1
 
 ## Examples
 
-Basic | Plasma | Image | Transform | Rotozoom | Tunnel | Starfield | Starfield 3D
---- | --- | --- | --- | --- | --- | --- | ---
-![basic](/previews/basic.png) | ![plasma](/previews/plasma.png) | ![image](/previews/image.png) | ![transform](/previews/transform.png) | ![rotozoom](/previews/rotozoom.png) | ![tunnel](/previews/tunnel.png) | ![starfield](/previews/starfield.png) | ![starfield](/previews/starfield_3d.png)
-[Source](/examples/basic.c) | [Source](/examples/plasma.c) | [Source](examples/image.c) | [Source](examples/transform.c) | [Source](examples/rotozoom.c) | [Source](examples/tunnel.c) | [Source](examples/starfield.c) | [Source](examples/starfield_3d.c)
+Basic | Plasma | Image | Transform | Rotozoom | Tunnel | Starfield | Starfield 3D | Voxel Space
+--- | --- | --- | --- | --- | --- | --- | --- | ---
+![basic](/previews/basic.png) | ![plasma](/previews/plasma.png) | ![image](/previews/image.png) | ![transform](/previews/transform.png) | ![rotozoom](/previews/rotozoom.png) | ![tunnel](/previews/tunnel.png) | ![starfield](/previews/starfield.png) | ![starfield-3d](/previews/starfield_3d.png) | ![voxel-space](/previews/voxel_space.png)
+[Source](/examples/basic.c) | [Source](/examples/plasma.c) | [Source](examples/image.c) | [Source](examples/transform.c) | [Source](examples/rotozoom.c) | [Source](examples/tunnel.c) | [Source](examples/starfield.c) | [Source](examples/starfield_3d.c) | [Source](examples/voxel_space.c)
 
 ## Converting audio
 
@@ -78,5 +79,10 @@ ffmpeg -i assets/{example_sound}.wav -acodec pcm_s16le -ac 2 -ar 48000 assets/{e
 
 ## Attributions / References
 
-- Music in the basic example is by [joshuaempyre](https://freesound.org/people/joshuaempyre/).
 - This library wraps [SDL2](https://www.libsdl.org/).
+- Music in the basic example is by [joshuaempyre](https://freesound.org/people/joshuaempyre/).
+	- Original link: https://freesound.org/people/joshuaempyre/sounds/251461/.
+- Space texture used in the tunnel example is by [webtreats](http://www.everystockphoto.com/photographer.php?photographer_id=71737)
+	- Original link: http://www.everystockphoto.com/photo.php?imageId=9268254.
+- Tunnel and Rotozoom effects were implemented following the helpful descriptions given by [mrkite](https://github.com/mrkite) at https://seancode.com/demofx/.
+- Voxel Space effect implemented with help from https://github.com/s-macke/VoxelSpace.

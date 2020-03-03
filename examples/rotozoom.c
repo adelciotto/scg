@@ -1,6 +1,9 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
+// Rotozoom effect implemented with help from the following references:
+// - https://seancode.com/demofx/
+
 static void draw_image_with_rotozoom(scg_screen_t *screen, scg_image_t image,
                                      float32_t angle, float32_t scale) {
     int screen_w = screen->width;

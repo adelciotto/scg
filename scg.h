@@ -59,64 +59,95 @@ typedef struct scg_return_status_t {
     const char *error_msg;
 } scg_return_status_t;
 
-extern scg_return_status_t scg_return_status_failure(const char *error_msg);
-extern scg_return_status_t scg_return_status_success(void);
+extern inline scg_return_status_t
+scg_return_status_failure(const char *error_msg);
+extern inline scg_return_status_t scg_return_status_success(void);
 
-extern void scg_swap_int(int *a, int *b);
-extern void scg_swap_float32(float32_t *a, float32_t *b);
-extern int scg_min_int(int val, int min);
-extern int scg_max_int(int val, int max);
-extern float32_t scg_min_float32(float32_t val, float32_t min);
-extern float32_t scg_max_float32(float32_t val, float32_t max);
-extern float32_t scg_clamp_float32(float32_t val, float32_t min, float32_t max);
+extern inline int scg_min_int(int val, int min);
+extern inline int scg_max_int(int val, int max);
 
-extern uint64_t scg_get_performance_counter(void);
-extern uint64_t scg_get_performance_frequency(void);
-extern float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start);
-extern float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start);
+extern inline float32_t scg_min_float32(float32_t val, float32_t min);
+extern inline float32_t scg_max_float32(float32_t val, float32_t max);
+extern inline float32_t scg_clamp_float32(float32_t val, float32_t min,
+                                          float32_t max);
+extern inline int scg_round_float32(float32_t val);
 
-typedef union scg_pixel_t {
-    uint32_t packed;
-    struct {
-        uint8_t r;
-        uint8_t g;
-        uint8_t b;
-        uint8_t a;
-    } color;
-} scg_pixel_t;
+extern inline uint64_t scg_get_performance_counter(void);
+extern inline uint64_t scg_get_performance_frequency(void);
+extern inline float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start);
+extern inline float64_t scg_get_elapsed_time_millisecs(uint64_t end,
+                                                       uint64_t start);
 
-#define scg_pixel_index_from_xy(x, y, width) (int)(y * width + x)
+typedef struct scg_color_t {
+    float32_t r;
+    float32_t g;
+    float32_t b;
+    float32_t a;
+} scg_color_t;
 
-extern scg_pixel_t scg_pixel_create(uint8_t r, uint8_t g, uint8_t b);
-extern scg_pixel_t scg_pixel_create_from_uint32(uint32_t packed);
+extern inline scg_color_t scg_color_create_from_rgb(float32_t r, float32_t g,
+                                                    float32_t b);
+extern inline scg_color_t scg_color_create_from_rgba(float32_t r, float32_t g,
+                                                     float32_t b, float32_t a);
 
-#define SCG_COLOR_WHITE scg_pixel_create(255, 255, 255)
-#define SCG_COLOR_BLACK scg_pixel_create(0, 0, 0)
-#define SCG_COLOR_RED scg_pixel_create(255, 0, 0)
-#define SCG_COLOR_GREEN scg_pixel_create(0, 255, 0)
-#define SCG_COLOR_BLUE scg_pixel_create(0, 0, 255)
-#define SCG_COLOR_YELLOW scg_pixel_create(255, 255, 0)
-#define SCG_COLOR_95_GREEN scg_pixel_create(0, 128, 128);
-#define SCG_COLOR_ICE_BLUE scg_pixel_create(153, 255, 255);
-#define SCG_COLOR_SKY_BLUE scg_pixel_create(135, 206, 235);
+extern inline scg_color_t scg_color_create_from_uint8_rgb(uint8_t r, uint8_t g,
+                                                          uint8_t b);
+extern inline void scg_color_to_rgba_uint8(scg_color_t color, uint8_t out[4]);
+
+#define SCG_COLOR_WHITE scg_color_create_from_rgb(1.0f, 1.0f, 1.0f)
+#define SCG_COLOR_BLACK scg_color_create_from_rgb(0.0f, 0.0f, 0.0f)
+#define SCG_COLOR_RED scg_color_create_from_rgb(1.0f, 0.0f, 0.0f)
+#define SCG_COLOR_GREEN scg_color_create_from_rgb(0.0f, 1.0f, 0.0f)
+#define SCG_COLOR_BLUE scg_color_create_from_rgb(0.0f, 0.0f, 1.0f)
+#define SCG_COLOR_YELLOW scg_color_create_from_rgb(1.0f, 1.0f, 0.0f)
+#define SCG_COLOR_95_GREEN scg_color_create_from_rgb(0, 0.5f, 0.5f);
+#define SCG_COLOR_TRANSPARENT scg_color_create_from_rgba(0.0f, 0.0f, 0.0f, 0.0f)
+
+typedef struct scg_screen_t scg_screen_t;
+
+typedef enum scg_blend_mode_t {
+    SCG_BLEND_MODE_NONE = SDL_BLENDMODE_NONE,
+    SCG_BLEND_MODE_BLEND = SDL_BLENDMODE_BLEND,
+    SCG_BLEND_MODE_ADD = SDL_BLENDMODE_ADD,
+    SCG_BLEND_MODE_MOD = SDL_BLENDMODE_MOD
+} scg_blend_mode_t;
+
+typedef enum scg_image_access_mode_t {
+    SCG_IMAGE_ACCESS_MODE_STATIC = SDL_TEXTUREACCESS_STATIC,
+    SCG_IMAGE_ACCESS_MODE_PIXEL = SDL_TEXTUREACCESS_STREAMING,
+    SCG_IMAGE_ACCESS_MODE_TARGET = SDL_TEXTUREACCESS_TARGET
+} scg_image_access_mode_t;
 
 typedef struct scg_image_t {
     int width;
     int height;
-    scg_pixel_t *pixels;
+    int pitch;
+    SDL_Texture *sdl_texture;
+    SDL_PixelFormat *pixel_format;
+    scg_blend_mode_t blend_mode;
+    scg_image_access_mode_t access_mode;
+    scg_color_t mod_color;
+    bool_t locked;
+    uint32_t *pixels;
 } scg_image_t;
 
+extern inline int scg_pixel_index_from_xy(int x, int y, int w);
+
+extern scg_return_status_t
+scg_image_create(scg_image_t *image, scg_screen_t *screen, int width,
+                 int height, scg_image_access_mode_t access_mode);
 extern scg_return_status_t scg_image_create_from_bmp(scg_image_t *image,
+                                                     scg_screen_t *screen,
                                                      const char *filepath);
+extern scg_return_status_t scg_image_lock(scg_image_t *image);
+extern void scg_image_unlock(scg_image_t *image);
+extern scg_color_t scg_image_map_uint32_to_rgba(scg_image_t *image, uint32_t pixel);
+extern uint32_t scg_image_map_rgba_to_uint32(scg_image_t *image,
+                                             scg_color_t color);
+extern void scg_image_set_blend_mode(scg_image_t *image,
+                                     scg_blend_mode_t blend_mode);
+extern void scg_image_set_mod_color(scg_image_t *image, scg_color_t color);
 extern void scg_image_destroy(scg_image_t *image);
-
-typedef enum scg_blend_mode_t {
-    SCG_BLEND_MODE_NONE,
-    SCG_BLEND_MODE_MASK,
-    SCG_BLEND_MODE_ALPHA
-} scg_blend_mode_t;
-
-typedef struct scg_screen_t scg_screen_t;
 
 scg_return_status_t scg_screen_create(scg_screen_t *screen, const char *title,
                                       int width, int height, int scale,
@@ -124,34 +155,23 @@ scg_return_status_t scg_screen_create(scg_screen_t *screen, const char *title,
 extern bool_t scg_screen_is_running(scg_screen_t *screen);
 extern void scg_screen_set_blend_mode(scg_screen_t *screen,
                                       scg_blend_mode_t blend_mode);
-extern void scg_screen_set_pixel(scg_screen_t *screen, int x, int y,
-                                 scg_pixel_t pixel);
-extern void scg_screen_clear(scg_screen_t *screen, scg_pixel_t color);
-extern void scg_screen_draw_line(scg_screen_t *screen, int px0, int py0,
-                                 int px1, int py1, scg_pixel_t color);
-extern void scg_screen_draw_vertical_line_fast(scg_screen_t *screen, int px0,
-                                               int py0, int py1,
-                                               scg_pixel_t color);
-extern void scg_screen_draw_rect(scg_screen_t *screen, int px, int py,
-                                 int width, int height, scg_pixel_t color);
-extern void scg_screen_fill_rect(scg_screen_t *screen, int px, int py,
-                                 int width, int height, scg_pixel_t color);
-// Maybe a temporary function...
-extern void scg_polygon_create_points(int num_points,
-                                      float32_t out[num_points][2],
-                                      float32_t radius);
-extern void scg_screen_draw_polygon(scg_screen_t *screen, int px, int py,
-                                    float32_t points[][2], int num_points,
-                                    scg_pixel_t color);
+extern void scg_screen_set_draw_color(scg_screen_t *screen, scg_color_t color);
+extern void scg_screen_clear(scg_screen_t *screen);
+extern void scg_screen_draw_line(scg_screen_t *screen, int x0, int y0, int x1,
+                                 int y1, scg_color_t color);
+extern void scg_screen_draw_rect(scg_screen_t *screen, int x, int y, int w,
+                                 int h, scg_color_t color);
+extern void scg_screen_fill_rect(scg_screen_t *screen, int x, int y, int w,
+                                 int h);
 extern void scg_screen_draw_image(scg_screen_t *screen, scg_image_t image,
-                                  int px, int py);
+                                  int x, int y);
 extern void scg_screen_draw_image_with_transform(scg_screen_t *screen,
-                                                 scg_image_t image, int px,
-                                                 int py, float32_t angle,
-                                                 float32_t sx, float32_t sy);
+                                                 scg_image_t image, int x,
+                                                 int y, float32_t angle,
+                                                 float32_t scalex,
+                                                 float32_t scaley);
 extern void scg_screen_draw_string(scg_screen_t *screen, const char *str, int x,
-                                   int y, int anchor_to_center,
-                                   scg_pixel_t color);
+                                   int y, bool_t anchor_to_center);
 extern void scg_screen_draw_fps(scg_screen_t *screen);
 extern void scg_screen_present(scg_screen_t *screen);
 extern void scg_screen_log_info(scg_screen_t *screen);
@@ -206,6 +226,7 @@ struct scg_screen_t {
     int width;
     int height;
     int scale;
+    scg_color_t draw_color;
     scg_blend_mode_t blend_mode;
 
     int target_frames_per_sec;
@@ -218,14 +239,14 @@ struct scg_screen_t {
         float64_t fps;
     } frame_metrics;
 
-    bool_t is_running;
+    bool_t running;
+
+    scg_image_t bitmap_font;
+    SDL_Rect font_chars[128];
 
     SDL_Window *sdl_window;
     SDL_Renderer *sdl_renderer;
-    SDL_Texture *sdl_texture;
-    uint32_t *pixels;
-    int pitch;
-    int total_num_pixels;
+    SDL_PixelFormat *pixel_format;
 };
 
 struct scg_sound_t {
@@ -279,7 +300,7 @@ extern const char scg__font8x8[128][SCG_FONT_SIZE];
 // scg_return_status_failure implementation
 //
 
-scg_return_status_t scg_return_status_failure(const char *error_msg) {
+inline scg_return_status_t scg_return_status_failure(const char *error_msg) {
     return (scg_return_status_t){SCG_TRUE, error_msg};
 }
 
@@ -287,7 +308,7 @@ scg_return_status_t scg_return_status_failure(const char *error_msg) {
 // scg_return_status_success implementation
 //
 
-scg_return_status_t scg_return_status_success(void) {
+inline scg_return_status_t scg_return_status_success(void) {
     return (scg_return_status_t){SCG_FALSE, ""};
 }
 
@@ -303,30 +324,10 @@ static const char *scg__sprintf(const char *fmt, ...) {
 }
 
 //
-// scg_swap_int implementation
-//
-
-void scg_swap_int(int *a, int *b) {
-    int temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-//
-// scg_swap_float32 implementation
-//
-
-void scg_swap_float32(float32_t *a, float32_t *b) {
-    float32_t temp = *a;
-    *a = *b;
-    *b = temp;
-}
-
-//
 // scg_min_int implementation
 //
 
-int scg_min_int(int val, int min) {
+inline int scg_min_int(int val, int min) {
     return val < min ? val : min;
 }
 
@@ -334,7 +335,7 @@ int scg_min_int(int val, int min) {
 // scg_max_int implementation
 //
 
-int scg_max_int(int val, int max) {
+inline int scg_max_int(int val, int max) {
     return val > max ? val : max;
 }
 
@@ -342,7 +343,7 @@ int scg_max_int(int val, int max) {
 // scg_min_float32 implementation
 //
 
-float32_t scg_min_float32(float32_t val, float32_t min) {
+inline float32_t scg_min_float32(float32_t val, float32_t min) {
     return val < min ? val : min;
 }
 
@@ -350,7 +351,7 @@ float32_t scg_min_float32(float32_t val, float32_t min) {
 // scg_max_float32 implementation
 //
 
-float32_t scg_max_float32(float32_t val, float32_t max) {
+inline float32_t scg_max_float32(float32_t val, float32_t max) {
     return val > max ? val : max;
 }
 
@@ -358,16 +359,25 @@ float32_t scg_max_float32(float32_t val, float32_t max) {
 // scg_clamp_float32 implementation
 //
 
-float32_t scg_clamp_float32(float32_t val, float32_t min, float32_t max) {
+inline float32_t scg_clamp_float32(float32_t val, float32_t min,
+                                   float32_t max) {
     const float32_t t = val < min ? min : val;
     return t > max ? max : t;
+}
+
+//
+// scg_round_float32 implementation
+//
+
+inline int scg_round_float32(float32_t val) {
+    return (int)(val + 0.5f);
 }
 
 //
 // scg_get_performance_counter implementation
 //
 
-Uint64 scg_get_performance_counter(void) {
+inline Uint64 scg_get_performance_counter(void) {
     return SDL_GetPerformanceCounter();
 }
 
@@ -375,7 +385,7 @@ Uint64 scg_get_performance_counter(void) {
 // scg_get_performance_frequency implementation
 //
 
-Uint64 scg_get_performance_frequency(void) {
+inline Uint64 scg_get_performance_frequency(void) {
     return SDL_GetPerformanceFrequency();
 }
 
@@ -383,7 +393,7 @@ Uint64 scg_get_performance_frequency(void) {
 // scg_get_elapsed_time_secs implementation
 //
 
-float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start) {
+inline float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start) {
     return (float64_t)(end - start) /
            (float64_t)scg_get_performance_frequency();
 }
@@ -392,34 +402,104 @@ float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start) {
 // scg_get_elapsed_time_millisecs implementation
 //
 
-float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
+inline float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
     return (float64_t)((end - start) * 1000) /
            (float64_t)scg_get_performance_frequency();
 }
 
 //
-// scg_pixel_create implementation
+// scg_color_create_from_rgb implementation
 //
 
-scg_pixel_t scg_pixel_create(uint8_t r, uint8_t g, uint8_t b) {
-    scg_pixel_t pixel;
-    pixel.color.r = r;
-    pixel.color.g = g;
-    pixel.color.b = b;
-    pixel.color.a = 255;
-
-    return pixel;
+inline scg_color_t scg_color_create_from_rgb(float32_t r, float32_t g,
+                                             float32_t b) {
+    return (scg_color_t){r, g, b, 1.0f};
 }
 
 //
-// scg_pixel_create_from_uint32 implementation
+// scg_color_create_from_rgba implementation
 //
 
-scg_pixel_t scg_pixel_create_from_uint32(uint32_t color) {
-    scg_pixel_t pixel;
-    pixel.packed = color;
+inline scg_color_t scg_color_create_from_rgba(float32_t r, float32_t g,
+                                              float32_t b, float32_t a) {
+    return (scg_color_t){r, g, b, a};
+}
 
-    return pixel;
+//
+// scg_color_create_from_uint8_rgb implementation
+//
+
+inline scg_color_t scg_color_create_from_uint8_rgb(uint8_t r, uint8_t g,
+                                                   uint8_t b) {
+    float32_t rf = (float32_t)r / 255.0f;
+    float32_t gf = (float32_t)g / 255.0f;
+    float32_t bf = (float32_t)b / 255.0f;
+
+    return scg_color_create_from_rgb(rf, gf, bf);
+}
+
+//
+// scg_color_to_rgba_uint8 implementation
+//
+
+inline void scg_color_to_rgba_uint8(scg_color_t color, uint8_t out[4]) {
+    out[0] = (uint8_t)scg_min_float32(color.r * 255.0f, 255.0f);
+    out[1] = (uint8_t)scg_min_float32(color.g * 255.0f, 255.0f);
+    out[2] = (uint8_t)scg_min_float32(color.b * 255.0f, 255.0f);
+    out[3] = (uint8_t)scg_min_float32(color.a * 255.0f, 255.0f);
+}
+
+//
+// scg_pixel_index_from_xy implementation
+//
+
+inline int scg_pixel_index_from_xy(int x, int y, int w) {
+    return (y * w) + x;
+}
+
+//
+// scg_image_create implementation
+//
+
+scg_return_status_t scg_image_create(scg_image_t *image, scg_screen_t *screen,
+                                     int w, int h,
+                                     scg_image_access_mode_t access_mode) {
+    SDL_Texture *texture = SDL_CreateTexture(
+        screen->sdl_renderer, SDL_PIXELFORMAT_RGBA8888, access_mode, w, h);
+    if (texture == NULL) {
+        const char *error_msg = scg__sprintf(
+            "Failed to create texture for image. %s", SDL_GetError());
+        return scg_return_status_failure(error_msg);
+    }
+
+    SDL_BlendMode sdl_blend_mode;
+    if (SDL_GetTextureBlendMode(texture, &sdl_blend_mode) != 0) {
+        scg_log_warn("Could not get image blend mode. Error: %s",
+                     SDL_GetError());
+        sdl_blend_mode = SCG_BLEND_MODE_NONE;
+    }
+    scg_blend_mode_t blend_mode = sdl_blend_mode;
+
+    uint8_t r, g, b;
+    if (SDL_GetTextureColorMod(texture, &r, &g, &b) != 0) {
+        scg_log_warn("Could not get image mod color. Error: %s",
+                     SDL_GetError());
+        r = g = b = 255;
+    }
+    scg_color_t mod_color = scg_color_create_from_uint8_rgb(r, g, b);
+
+    image->width = w;
+    image->height = h;
+    image->sdl_texture = texture;
+    image->pixel_format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA8888);
+    image->access_mode = access_mode;
+    image->blend_mode = blend_mode;
+    image->mod_color = mod_color;
+    image->locked = SCG_FALSE;
+    image->pitch = w * 4;
+    image->pixels = NULL;
+
+    return scg_return_status_success();
 }
 
 //
@@ -427,6 +507,7 @@ scg_pixel_t scg_pixel_create_from_uint32(uint32_t color) {
 //
 
 scg_return_status_t scg_image_create_from_bmp(scg_image_t *image,
+                                              scg_screen_t *screen,
                                               const char *filepath) {
     SDL_Surface *surface = SDL_LoadBMP(filepath);
     if (surface == NULL) {
@@ -435,52 +516,42 @@ scg_return_status_t scg_image_create_from_bmp(scg_image_t *image,
         return scg_return_status_failure(error_msg);
     }
 
-    SDL_PixelFormat *pixel_format = surface->format;
-
-    if (pixel_format->BitsPerPixel != 32) {
-        const char *error_msg = scg__sprintf(
-            "Failed to load %s image file. The pixel format must be 32 bit",
-            filepath);
+    SDL_Texture *texture =
+        SDL_CreateTextureFromSurface(screen->sdl_renderer, surface);
+    if (texture == NULL) {
+        const char *error_msg =
+            scg__sprintf("Failed to create texture for %s image file. %s",
+                         filepath, SDL_GetError());
         return scg_return_status_failure(error_msg);
     }
 
-    uint32_t *surface_pixels = (uint32_t *)surface->pixels;
-    scg_pixel_t *image_pixels =
-        malloc(surface->w * surface->h * sizeof(*image_pixels));
-
-    for (int i = 0; i < surface->w * surface->h; i++) {
-        uint32_t packed = surface_pixels[i];
-        uint32_t temp;
-
-        temp = packed & pixel_format->Rmask;
-        temp = temp >> pixel_format->Rshift;
-        temp = temp << pixel_format->Rloss;
-        uint8_t red = (uint8_t)temp;
-
-        temp = packed & pixel_format->Gmask;
-        temp = temp >> pixel_format->Gshift;
-        temp = temp << pixel_format->Gloss;
-        uint8_t green = (uint8_t)temp;
-
-        temp = packed & pixel_format->Bmask;
-        temp = temp >> pixel_format->Bshift;
-        temp = temp << pixel_format->Bloss;
-        uint8_t blue = (uint8_t)temp;
-
-        temp = packed & pixel_format->Amask;
-        temp = temp >> pixel_format->Ashift;
-        temp = temp << pixel_format->Aloss;
-        uint8_t alpha = (uint8_t)temp;
-
-        scg_pixel_t pixel = scg_pixel_create(red, green, blue);
-        pixel.color.a = alpha;
-
-        image_pixels[i] = pixel;
+    SDL_BlendMode sdl_blend_mode;
+    if (SDL_GetTextureBlendMode(texture, &sdl_blend_mode) != 0) {
+        scg_log_warn("Could not get image blend mode. Error: %s",
+                     SDL_GetError());
+        sdl_blend_mode = SCG_BLEND_MODE_NONE;
     }
+    scg_blend_mode_t blend_mode = sdl_blend_mode;
+
+    scg_color_t mod_color;
+    uint8_t r, g, b;
+    if (SDL_GetTextureColorMod(texture, &r, &g, &b) != 0) {
+        scg_log_warn("Could not get image mod color. Error: %s",
+                     SDL_GetError());
+        r = g = b = 255;
+    }
+    mod_color = scg_color_create_from_uint8_rgb(r, g, b);
 
     image->width = surface->w;
     image->height = surface->h;
-    image->pixels = image_pixels;
+    image->sdl_texture = texture;
+    image->pixel_format = SDL_AllocFormat(surface->format->format);
+    image->access_mode = SCG_IMAGE_ACCESS_MODE_STATIC;
+    image->blend_mode = blend_mode;
+    image->mod_color = mod_color;
+    image->locked = SCG_FALSE;
+    image->pitch = surface->pitch;
+    image->pixels = NULL;
 
     SDL_FreeSurface(surface);
 
@@ -488,11 +559,97 @@ scg_return_status_t scg_image_create_from_bmp(scg_image_t *image,
 }
 
 //
+// scg_image_lock implementation
+//
+
+scg_return_status_t scg_image_lock(scg_image_t *image) {
+    if (image->locked == SCG_TRUE) {
+        return scg_return_status_success();
+    }
+
+    void *pixels = NULL;
+    int pitch;
+    if (SDL_LockTexture(image->sdl_texture, NULL, &pixels, &pitch) != 0) {
+        const char *error_msg = scg__sprintf(
+            "Failed to lock texture for image. %s", SDL_GetError());
+        return scg_return_status_failure(error_msg);
+    }
+
+    image->pixels = (uint32_t *)pixels;
+    image->pitch = pitch;
+    image->locked = SCG_TRUE;
+
+    return scg_return_status_success();
+}
+
+//
+// scg_image_unlock implementation
+//
+
+void scg_image_unlock(scg_image_t *image) {
+    if (image->locked == SCG_FALSE) {
+        return;
+    }
+
+    SDL_UnlockTexture(image->sdl_texture);
+
+    image->pixels = NULL;
+    image->locked = SCG_FALSE;
+}
+
+scg_color_t scg_image_map_uint32_to_rgba(scg_image_t *image, uint32_t pixel) {
+	uint8_t r, g, b, a;
+	SDL_GetRGBA(pixel, image->pixel_format, &r, &g, )
+}
+
+//
+// scg_image_map_rgba_to_uint32 implementation
+//
+
+uint32_t scg_image_map_rgba_to_uint32(scg_image_t *image, scg_color_t color) {
+    uint8_t rgba[4];
+    scg_color_to_rgba_uint8(color, rgba);
+
+    return SDL_MapRGBA(image->pixel_format, rgba[0], rgba[1], rgba[2], rgba[3]);
+}
+
+//
+// scg_image_set_blend_mode implementation
+//
+
+void scg_image_set_blend_mode(scg_image_t *image, scg_blend_mode_t blend_mode) {
+    image->blend_mode = blend_mode;
+
+    if (SDL_SetTextureBlendMode(image->sdl_texture, blend_mode) != 0) {
+        scg_log_warn("Could not set the image blend mode. Error: %s",
+                     SDL_GetError());
+    }
+}
+
+//
+// scg_image_set_mod_color implementation
+//
+
+void scg_image_set_mod_color(scg_image_t *image, scg_color_t color) {
+    image->mod_color = color;
+
+    uint8_t rgba[4];
+    scg_color_to_rgba_uint8(color, rgba);
+
+    if (SDL_SetTextureColorMod(image->sdl_texture, rgba[0], rgba[1], rgba[2]) !=
+        0) {
+        scg_log_warn("Could not set the image mod color. Error: %s",
+                     SDL_GetError());
+    }
+}
+
+//
 // scg_image_destroy implementation
 //
 
 void scg_image_destroy(scg_image_t *image) {
-    free(image->pixels);
+    SDL_FreeFormat(image->pixel_format);
+    SDL_DestroyTexture(image->sdl_texture);
 }
 
 static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
@@ -503,6 +660,55 @@ static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
     }
 
     return result;
+}
+
+static scg_return_status_t scg__init_bitmap_font(scg_screen_t *screen) {
+    scg_image_t bitmap_font;
+    scg_return_status_t return_status = scg_image_create(
+        &bitmap_font, screen, 128, 64, SCG_IMAGE_ACCESS_MODE_PIXEL);
+    if (return_status.is_error) {
+        return return_status;
+    }
+
+    return_status = scg_image_lock(&bitmap_font);
+    if (return_status.is_error) {
+        return return_status;
+    }
+
+    int char_code = 0;
+    int w = bitmap_font.width;
+    int h = bitmap_font.height;
+
+    for (int y = 0; y < h; y += SCG_FONT_SIZE) {
+        for (int x = 0; x < w; x += SCG_FONT_SIZE) {
+            SDL_Rect rect = (SDL_Rect){
+                .x = x, .y = y, .w = SCG_FONT_SIZE, .h = SCG_FONT_SIZE};
+            const char *char_bitmap = scg__font8x8[char_code];
+
+            screen->font_chars[char_code] = rect;
+
+            for (int i = 0; i < SCG_FONT_SIZE; i++) {
+                for (int j = 0; j < SCG_FONT_SIZE; j++) {
+                    int set = char_bitmap[i] & 1 << j;
+                    int index = scg_pixel_index_from_xy(x + j, y + i, w);
+
+                    scg_color_t color =
+                        set ? SCG_COLOR_WHITE : SCG_COLOR_TRANSPARENT;
+                    bitmap_font.pixels[index] =
+                        scg_image_map_rgba_to_uint32(&bitmap_font, color);
+                }
+            }
+
+            char_code++;
+        }
+    }
+
+    scg_image_unlock(&bitmap_font);
+
+    scg_image_set_blend_mode(&bitmap_font, SCG_BLEND_MODE_BLEND);
+
+    screen->bitmap_font = bitmap_font;
+    return scg_return_status_success();
 }
 
 //
@@ -543,22 +749,6 @@ scg_return_status_t scg_screen_create(scg_screen_t *screen, const char *title,
 
     SDL_RenderSetLogicalSize(sdl_renderer, width, height);
 
-    SDL_Texture *sdl_texture =
-        SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGBA32,
-                          SDL_TEXTUREACCESS_STREAMING, width, height);
-    if (sdl_texture == NULL) {
-        return scg_return_status_failure(SDL_GetError());
-    }
-
-    uint32_t *pixels = (uint32_t *)calloc(width * height, sizeof(*pixels));
-    if (pixels == NULL) {
-        int total_bytes = width * height * sizeof(*pixels);
-        const char *error_msg = scg__sprintf(
-            "Failed to allocate memory for pixel buffer. w=%d, h=%d, bytes=%d",
-            width, height, total_bytes);
-        return scg_return_status_failure(error_msg);
-    }
-
     screen->title = title;
     screen->width = width;
     screen->height = height;
@@ -569,13 +759,16 @@ scg_return_status_t scg_screen_create(scg_screen_t *screen, const char *title,
     screen->last_frame_counter = scg_get_performance_counter();
     screen->sdl_window = sdl_window;
     screen->sdl_renderer = sdl_renderer;
-    screen->sdl_texture = sdl_texture;
-    screen->pixels = pixels;
-    screen->total_num_pixels = screen->width * screen->height;
-    screen->pitch = screen->width * sizeof(uint32_t);
-    screen->blend_mode = SCG_BLEND_MODE_NONE;
     screen->frame_metrics.update_counter = scg_get_performance_counter();
-    screen->is_running = SCG_TRUE;
+    screen->running = SCG_TRUE;
+
+    scg_return_status_t return_status = scg__init_bitmap_font(screen);
+    if (return_status.is_error) {
+        return return_status;
+    }
+
+    scg_screen_set_draw_color(screen, SCG_COLOR_WHITE);
+    scg_screen_set_blend_mode(screen, SCG_BLEND_MODE_BLEND);
 
     return scg_return_status_success();
 }
@@ -590,11 +783,11 @@ bool_t scg_screen_is_running(scg_screen_t *screen) {
     SDL_PollEvent(&event);
     switch (event.type) {
     case SDL_QUIT:
-        screen->is_running = SCG_FALSE;
+        screen->running = SCG_FALSE;
         break;
     }
 
-    return screen->is_running == SCG_TRUE;
+    return screen->running == SCG_TRUE;
 }
 
 //
@@ -604,41 +797,28 @@ bool_t scg_screen_is_running(scg_screen_t *screen) {
 void scg_screen_set_blend_mode(scg_screen_t *screen,
                                scg_blend_mode_t blend_mode) {
     screen->blend_mode = blend_mode;
+
+    if (SDL_SetRenderDrawBlendMode(screen->sdl_renderer, blend_mode) != 0) {
+        scg_log_warn("Could not set the screen blend mode. Error: %s",
+                     SDL_GetError());
+    }
 }
 
 //
-// scg_screen_set_pixel implementation
+// scg_screen_set_draw_color implementation
 //
 
-void scg_screen_set_pixel(scg_screen_t *screen, int x, int y,
-                          scg_pixel_t pixel) {
-    if (x >= 0 && x < screen->width && y >= 0 && y < screen->height) {
-        int i = scg_pixel_index_from_xy(x, y, screen->width);
+void scg_screen_set_draw_color(scg_screen_t *screen, scg_color_t color) {
+    screen->draw_color = color;
 
-        if (screen->blend_mode == SCG_BLEND_MODE_NONE) {
-            screen->pixels[i] = pixel.packed;
-        }
+    scg_image_set_mod_color(&screen->bitmap_font, color);
 
-        if (screen->blend_mode == SCG_BLEND_MODE_MASK) {
-            if (pixel.color.a == 255) {
-                screen->pixels[i] = pixel.packed;
-            }
-        }
-
-        if (screen->blend_mode == SCG_BLEND_MODE_ALPHA) {
-            scg_pixel_t d = scg_pixel_create_from_uint32(screen->pixels[i]);
-            float32_t a = (float32_t)(pixel.color.a / 255.0f);
-            float32_t c = 1.0f - a;
-            float32_t r =
-                a * (float32_t)pixel.color.r + c * (float32_t)d.color.r;
-            float32_t g =
-                a * (float32_t)pixel.color.g + c * (float32_t)d.color.g;
-            float32_t b =
-                a * (float32_t)pixel.color.b + c * (float32_t)d.color.b;
-
-            screen->pixels[i] =
-                scg_pixel_create((uint8_t)r, (uint8_t)g, (uint8_t)b).packed;
-        }
+    uint8_t rgba[4];
+    scg_color_to_rgba_uint8(color, rgba);
+    if (SDL_SetRenderDrawColor(screen->sdl_renderer, rgba[0], rgba[1], rgba[2],
+                               rgba[3]) != 0) {
+        scg_log_warn("Could not set the screen draw color. Error: %s",
+                     SDL_GetError());
     }
 }
 
@@ -646,167 +826,30 @@ void scg_screen_set_pixel(scg_screen_t *screen, int x, int y,
 // scg_screen_clear implementation
 //
 
-void scg_screen_clear(scg_screen_t *screen, scg_pixel_t color) {
-    uint32_t pixel = color.packed;
-    int num_pixels = screen->total_num_pixels;
-
-    for (int i = 0; i < num_pixels; i++) {
-        screen->pixels[i] = pixel;
-    }
+void scg_screen_clear(scg_screen_t *screen) {
+    SDL_RenderClear(screen->sdl_renderer);
 }
 
 //
-// scg_screen_draw_line implementation
+// scg_screen_fill_rect implementation
 //
 
-void scg_screen_draw_line(scg_screen_t *screen, int px0, int py0, int px1,
-                          int py1, scg_pixel_t color) {
-    // Line is vertical
-    if (px0 == px1) {
-        if (py1 < py0) {
-            scg_swap_int(&py0, &py1);
-        }
+void scg_screen_fill_rect(scg_screen_t *screen, int x, int y, int w, int h) {
+    SDL_Rect rect = (SDL_Rect){.x = x, .y = y, .w = w, .h = h};
 
-        for (int y = py0; y <= py1; y++) {
-            scg_screen_set_pixel(screen, px0, y, color);
-        }
-
-        return;
-    }
-
-    // Line is horizontal
-    if (py0 == py1) {
-        if (px1 < px0) {
-            scg_swap_int(&px0, &px1);
-        }
-
-        for (int x = px0; x <= px1; x++) {
-            scg_screen_set_pixel(screen, x, py0, color);
-        }
-
-        return;
-    }
-
-    int dx = abs(px1 - px0);
-    int dy = abs(py1 - py0);
-
-    int step_x = px0 < px1 ? 1 : -1;
-    int step_y = py0 < py1 ? 1 : -1;
-    int err = (dx > dy ? dx : -dy) / 2;
-    int e2 = 0;
-
-    for (;;) {
-        scg_screen_set_pixel(screen, px0, py0, color);
-
-        if (px0 == px1 && py0 == py1) {
-            break;
-        }
-
-        e2 = err;
-        if (e2 > -dx) {
-            err -= dy;
-            px0 += step_x;
-        }
-        if (e2 < dy) {
-            err += dx;
-            py0 += step_y;
-        }
-    }
-}
-
-//
-// scg_screen_draw_vertical_line_fast implementation
-//
-
-void scg_screen_draw_vertical_line_fast(scg_screen_t *screen, int px0, int py0,
-                                        int py1, scg_pixel_t color) {
-    if (py0 < 0)
-        py0 = 0;
-    if (py0 > py1)
-        return;
-
-    int screen_w = screen->width;
-    uint32_t pixel = color.packed;
-
-    int i = scg_pixel_index_from_xy(px0, py0, screen_w);
-    for (int y = py0; y < py1; y++) {
-        screen->pixels[i] = pixel;
-        i += screen_w;
-    }
-}
-
-//
-// scg_screen_draw_rect_implementation
-//
-
-void scg_screen_draw_rect(scg_screen_t *screen, int px, int py, int width,
-                          int height, scg_pixel_t color) {
-    scg_screen_draw_line(screen, px, py, px + width, py, color);
-    scg_screen_draw_line(screen, px, py, px, py + height, color);
-    scg_screen_draw_line(screen, px, py + height, px + width, py + height,
-                         color);
-    scg_screen_draw_line(screen, px + width, py, px + width, py + height,
-                         color);
-}
-
-//
-// scg_screen_fill_rect_implementation
-//
-
-void scg_screen_fill_rect(scg_screen_t *screen, int px, int py, int width,
-                          int height, scg_pixel_t color) {
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            scg_screen_set_pixel(screen, px + j, py + i, color);
-        }
-    }
-}
-
-//
-// scg_polygon_create_points implementation
-//
-
-void scg_polygon_create_points(int num_points, float32_t out[num_points][2],
-                               float32_t radius) {
-    float32_t theta = SCG_PI * 2.0f / (float32_t)num_points;
-
-    for (int i = 0; i < num_points; i++) {
-        out[i][0] = radius * cosf(theta * i);
-        out[i][1] = radius * sinf(theta * i);
-    }
-}
-
-//
-// scg_screen_draw_polygon implementation
-//
-
-void scg_screen_draw_polygon(scg_screen_t *screen, int px, int py,
-                             float32_t points[][2], int num_points,
-                             scg_pixel_t color) {
-    for (int i = 0; i < num_points; i++) {
-        scg_screen_draw_line(
-            screen, px + (int)(points[i][0]), py + (int)(points[i][1]),
-            px + (int)(points[(i + 1) % num_points][0]),
-            py + (int)(points[(i + 1) % num_points][1]), color);
-    }
+    SDL_RenderFillRect(screen->sdl_renderer, &rect);
 }
 
 //
 // scg_screen_draw_image implementation
 //
 
-void scg_screen_draw_image(scg_screen_t *screen, scg_image_t image, int px,
-                           int py) {
-    int image_w = image.width;
-    int image_h = image.height;
+void scg_screen_draw_image(scg_screen_t *screen, scg_image_t image, int x,
+                           int y) {
+    SDL_Rect dest_rect =
+        (SDL_Rect){.x = x, .y = y, .w = image.width, .h = image.height};
 
-    for (int i = 0; i < image_h; i++) {
-        for (int j = 0; j < image_w; j++) {
-            scg_pixel_t pixel =
-                image.pixels[scg_pixel_index_from_xy(j, i, image_w)];
-            scg_screen_set_pixel(screen, px + j, py + i, pixel);
-        }
-    }
+    SDL_RenderCopy(screen->sdl_renderer, image.sdl_texture, NULL, &dest_rect);
 }
 
 //
@@ -814,56 +857,16 @@ void scg_screen_draw_image(scg_screen_t *screen, scg_image_t image, int px,
 //
 
 void scg_screen_draw_image_with_transform(scg_screen_t *screen,
-                                          scg_image_t image, int px, int py,
+                                          scg_image_t image, int x, int y,
                                           float32_t angle, float32_t sx,
                                           float32_t sy) {
-    if (sx <= 0.0f)
-        sx = 1.0f;
-    if (sy <= 0.0f)
-        sy = 1.0f;
+    int w = (int)((float32_t)image.width * sx);
+    int h = (int)((float32_t)image.height * sy);
 
-    float32_t image_w = image.width;
-    float32_t image_h = image.height;
-    float32_t image_sw = image_w * sx;
-    float32_t image_sh = image_h * sy;
-    float32_t ratio_x = image_w / image_sw;
-    float32_t ratio_y = image_h / image_sh;
+    SDL_Rect dest_rect = (SDL_Rect){.x = x, .y = y, .w = w, .h = h};
 
-    float32_t origin_x = image_w * 0.5f;
-    float32_t origin_y = image_h * 0.5f;
-
-    float32_t s = sinf(-angle);
-    float32_t c = cosf(-angle);
-
-    for (int i = 0; i < image_sh; i++) {
-        for (int j = 0; j < image_sw; j++) {
-            float32_t image_x = (float32_t)j * ratio_x - origin_x;
-            float32_t image_y = (float32_t)i * ratio_y - origin_y;
-            float32_t image_x_rot = (image_x * c - image_y * s) + origin_x;
-            float32_t image_y_rot = (image_x * s + image_y * c) + origin_y;
-
-            if (image_x_rot >= 0 && image_x_rot < image_w && image_y_rot >= 0 &&
-                image_y_rot < image_h) {
-                scg_pixel_t pixel = image.pixels[scg_pixel_index_from_xy(
-                    (int)image_x_rot, (int)image_y_rot, image_w)];
-
-                scg_screen_set_pixel(screen, px + j, py + i, pixel);
-            }
-        }
-    }
-}
-
-static void scg__draw_char(scg_screen_t *screen, const char *char_bitmap, int x,
-                           int y, scg_pixel_t color) {
-    for (int i = 0; i < SCG_FONT_SIZE; i++) {
-        for (int j = 0; j < SCG_FONT_SIZE; j++) {
-            int set = char_bitmap[i] & 1 << j;
-
-            if (set) {
-                scg_screen_set_pixel(screen, x + j, y + i, color);
-            }
-        }
-    }
+    SDL_RenderCopyEx(screen->sdl_renderer, image.sdl_texture, NULL, &dest_rect,
+                     angle, NULL, SDL_FLIP_NONE);
 }
 
 static int scg__string_width(const char *str, int size) {
@@ -875,23 +878,31 @@ static int scg__string_width(const char *str, int size) {
 //
 
 void scg_screen_draw_string(scg_screen_t *screen, const char *str, int x, int y,
-                            int anchor_to_center, scg_pixel_t color) {
+                            bool_t anchor_to_center) {
     int current_x = x;
     int current_y = y;
 
-    if (anchor_to_center) {
+    if (anchor_to_center == SCG_TRUE) {
         int width = scg__string_width(str, SCG_FONT_SIZE);
         current_x = x - width / 2;
         current_y -= SCG_FONT_SIZE / 2;
     }
 
     for (int i = 0; str[i] != '\0'; i++) {
-        int char_code = (int)str[i];
-        if (char_code < 0 || char_code > 127) {
-            char_code = 63; // draw '?' for unknown char
+        if (str[i] != ' ') {
+            int char_code = (int)str[i];
+            if (char_code < 0 || char_code > 127) {
+                char_code = 63; // draw '?' for unknown char */
+            }
+
+            SDL_Rect dest_rect = (SDL_Rect){.x = current_x,
+                                            .y = current_y,
+                                            .w = SCG_FONT_SIZE,
+                                            .h = SCG_FONT_SIZE};
+            SDL_RenderCopy(screen->sdl_renderer,
+                           screen->bitmap_font.sdl_texture,
+                           &screen->font_chars[char_code], &dest_rect);
         }
-        scg__draw_char(screen, scg__font8x8[char_code], current_x, current_y,
-                       color);
 
         current_x += SCG_FONT_SIZE + 1;
     }
@@ -907,16 +918,20 @@ void scg_screen_draw_fps(scg_screen_t *screen) {
     char buffer[bsize];
     snprintf(buffer, bsize + 1, "fps:%.2f", fps);
 
-    scg_pixel_t color = SCG_COLOR_GREEN;
+    scg_color_t current_draw_color = screen->draw_color;
+
+    scg_color_t text_color = SCG_COLOR_GREEN;
     float32_t target_fps = (float32_t)screen->target_frames_per_sec;
     if (fps < target_fps * 0.95) {
-        color = SCG_COLOR_YELLOW;
+        text_color = SCG_COLOR_YELLOW;
     }
     if (fps < target_fps * 0.5) {
-        color = SCG_COLOR_RED;
+        text_color = SCG_COLOR_RED;
     }
 
-    scg_screen_draw_string(screen, buffer, 10, 10, 0, color);
+    scg_screen_set_draw_color(screen, text_color);
+    scg_screen_draw_string(screen, buffer, 10, 10, SCG_FALSE);
+    scg_screen_set_draw_color(screen, current_draw_color);
 }
 
 //
@@ -941,9 +956,6 @@ void scg_screen_present(scg_screen_t *screen) {
 
     uint64_t end_frame_counter = scg_get_performance_counter();
 
-    SDL_UpdateTexture(screen->sdl_texture, NULL, screen->pixels, screen->pitch);
-    SDL_RenderClear(screen->sdl_renderer);
-    SDL_RenderCopy(screen->sdl_renderer, screen->sdl_texture, NULL, NULL);
     SDL_RenderPresent(screen->sdl_renderer);
 
     if (scg_get_elapsed_time_secs(scg_get_performance_counter(),
@@ -978,7 +990,7 @@ void scg_screen_log_info(scg_screen_t *screen) {
 //
 
 void scg_screen_close(scg_screen_t *screen) {
-    screen->is_running = SCG_FALSE;
+    screen->running = SCG_FALSE;
 }
 
 //
@@ -986,10 +998,10 @@ void scg_screen_close(scg_screen_t *screen) {
 //
 
 void scg_screen_destroy(scg_screen_t *screen) {
-    free(screen->pixels);
-    SDL_DestroyTexture(screen->sdl_texture);
+    scg_image_destroy(&screen->bitmap_font);
     SDL_DestroyRenderer(screen->sdl_renderer);
     SDL_DestroyWindow(screen->sdl_window);
+
     SDL_Quit();
 }
 

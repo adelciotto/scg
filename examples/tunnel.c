@@ -36,7 +36,7 @@ static void init_tunnel(int screen_w, int screen_h, int image_w, int image_h) {
     }
 }
 
-static void draw_tunnel(scg_screen_t *screen, scg_image_t image,
+static void draw_tunnel(scg_screen_t *screen, scg_image_t *src_image, scg_image_t *dest_image,
                         float32_t elapsed_time) {
     int screen_w = screen->width;
     int screen_h = screen->height;
@@ -45,21 +45,26 @@ static void draw_tunnel(scg_screen_t *screen, scg_image_t image,
     int shift_x = (int)floorf((float32_t)image_w * elapsed_time * 0.5f);
     int shift_y = (int)floorf((float32_t)image_h * elapsed_time * 0.25f);
 
+	scg_image_lock(dest_image);
+
     for (int i = 0; i < screen_h; i++) {
         for (int j = 0; j < screen_w; j++) {
             int index = scg_pixel_index_from_xy(j, i, screen_w);
             int x = (distance_buffer[index] + shift_x) % image_w;
             int y = (angle_buffer[index] + shift_y) % image_h;
 
-            scg_pixel_t pixel = image.pixels[y * image_w + x];
+            scg_color_t src_color = scg_color_from_uint32(src_image->pixels[y * image_w + x]);
 
             float32_t shade = shade_buffer[index];
-            pixel.color.r = (uint8_t)((float32_t)pixel.color.r * shade);
-            pixel.color.g = (uint8_t)((float32_t)pixel.color.g * shade);
-            pixel.color.b = (uint8_t)((float32_t)pixel.color.b * shade);
-            scg_screen_set_pixel(screen, j, i, pixel);
+            src_color.r *= shade;
+            src_color.g *= shade;
+            src_color.b *= shade;
+
+			dest_image->pixels[index] = scg_image_map_rgba_to_uint32(dest_image, src_color);
         }
     }
+
+	scg_image_unlock(dest_image);
 }
 
 int main(void) {

@@ -2,8 +2,8 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-const int gscreen_w = 400;
-const int gscreen_h = 240;
+const int gscreen_w = 640;
+const int gscreen_h = 360;
 
 typedef struct star_t {
     float32_t x;
@@ -68,15 +68,15 @@ static void update_starfield(starfield_t starfield, float32_t animation_time) {
 
 static void draw_starfield(scg_screen_t *screen, starfield_t starfield) {
     for (int i = 0; i < starfield.num_stars; i++) {
-        scg_pixel_t star_color = SCG_COLOR_WHITE;
+        scg_color_t star_color = SCG_COLOR_WHITE;
         star_t *current = &starfield.stars[i];
 
         float32_t shade =
             scg_max_float32(1.0f - current->z / starfield.max_distance, 0.0f);
 
-        star_color.color.r = (uint8_t)((float32_t)star_color.color.r * shade);
-        star_color.color.g = (uint8_t)((float32_t)star_color.color.g * shade);
-        star_color.color.b = (uint8_t)((float32_t)star_color.color.b * shade);
+        star_color.r *= shade;
+        star_color.g *= shade;
+        star_color.b *= shade;
 
         float32_t z = scg_max_float32(current->z, 1.0f);
         float32_t x = (current->x * starfield.horizontal_view_distance) / z;
@@ -84,7 +84,9 @@ static void draw_starfield(scg_screen_t *screen, starfield_t starfield) {
         float32_t y = (float32_t)gscreen_h / 2.0f -
                       ((current->y * starfield.vertical_view_distance) / z);
 
-        scg_screen_set_pixel(screen, x, y, star_color);
+        scg_screen_set_draw_color(screen, star_color);
+        scg_screen_fill_rect(screen, scg_round_float32(x), scg_round_float32(y),
+                             1, 1);
     }
 }
 
@@ -115,7 +117,7 @@ int main(void) {
     starfield_t starfield;
     init_starfield(&starfield, num_stars, max_distance, world_speed);
 
-    scg_pixel_t clear_color = SCG_COLOR_BLACK;
+    scg_color_t clear_color = SCG_COLOR_BLACK;
 
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
@@ -124,7 +126,8 @@ int main(void) {
 
         update_starfield(starfield, screen.target_time_per_frame_secs);
 
-        scg_screen_clear(&screen, clear_color);
+        scg_screen_set_draw_color(&screen, clear_color);
+        scg_screen_clear(&screen);
 
         draw_starfield(&screen, starfield);
 

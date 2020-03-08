@@ -2,8 +2,8 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-const int gscreen_w = 400;
-const int gscreen_h = 240;
+const int gscreen_w = 640;
+const int gscreen_h = 360;
 
 typedef struct star_t {
     float32_t x;
@@ -59,19 +59,19 @@ static void update_starfield(starfield_t starfield, float32_t animation_time) {
 
 static void draw_starfield(scg_screen_t *screen, starfield_t starfield) {
     for (int i = 0; i < starfield.num_stars; i++) {
-        scg_pixel_t star_color = SCG_COLOR_WHITE;
+        scg_color_t star_color = SCG_COLOR_WHITE;
         star_t *current = &starfield.stars[i];
 
-        star_color.color.a =
-            (uint8_t)((float32_t)star_color.color.a * current->layer_modifier);
+        star_color.a *= current->layer_modifier;
 
-        if (current->is_super_fast == SCG_TRUE) {
-            scg_screen_fill_rect(screen, current->x, current->y,
-                                 starfield.star_size, starfield.star_size * 2,
-                                 star_color);
-        } else {
-            scg_screen_set_pixel(screen, current->x, current->y, star_color);
-        }
+        int star_length =
+            (current->is_super_fast == SCG_TRUE ? starfield.star_size * 2
+                                                : starfield.star_size);
+
+        scg_screen_set_draw_color(screen, star_color);
+        scg_screen_fill_rect(screen, scg_round_float32(current->x),
+                             scg_round_float32(current->y), starfield.star_size,
+                             star_length);
     }
 }
 
@@ -101,7 +101,7 @@ int main(void) {
     starfield_t starfield;
     init_starfield(&starfield, num_stars, num_layers, scroll_speed);
 
-    scg_pixel_t clear_color = SCG_COLOR_BLACK;
+    scg_color_t clear_color = SCG_COLOR_BLACK;
 
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
@@ -110,12 +110,11 @@ int main(void) {
 
         update_starfield(starfield, screen.target_time_per_frame_secs);
 
-        scg_screen_clear(&screen, clear_color);
+        scg_screen_set_draw_color(&screen, clear_color);
+        scg_screen_clear(&screen);
 
-        scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_ALPHA);
         draw_starfield(&screen, starfield);
 
-        scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_NONE);
         scg_screen_draw_fps(&screen);
 
         scg_keyboard_update(&keyboard);

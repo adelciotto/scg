@@ -4,7 +4,7 @@
 int main(void) {
     const int width = 640;
     const int height = 360;
-    const int scale = 2;
+    const int scale = 1;
     const bool_t fullscreen = SCG_FALSE;
 
     scg_screen_t screen;
@@ -42,8 +42,8 @@ int main(void) {
         scg_screen_set_draw_color(&screen, clear_color);
         scg_screen_clear(&screen);
 
-        scg_screen_draw_image_with_transform(
-            &screen, image, screen.width / 2 - image.width,
+        scg_screen_draw_image_transform(
+            &screen, &image, screen.width / 2 - image.width,
             screen.height / 2 - image.height, elapsed_time, 2.0f, 2.0f);
 
         scg_screen_draw_fps(&screen);

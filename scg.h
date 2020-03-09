@@ -78,6 +78,19 @@ extern inline float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start);
 extern inline float64_t scg_get_elapsed_time_millisecs(uint64_t end,
                                                        uint64_t start);
 
+typedef struct scg_rectangle_t {
+	int x;
+	int y;
+	int w;
+	int h;
+	int x0;
+	int y0;
+	int x1;
+	int y1;
+} scg_rectangle_t;
+
+extern inline scg_rectangle_t scg_rectangle_create(int x, int y, int w, int h);
+
 typedef struct scg_color_t {
     float32_t r;
     float32_t g;
@@ -92,6 +105,7 @@ extern inline scg_color_t scg_color_create_from_rgba(float32_t r, float32_t g,
 
 extern inline scg_color_t scg_color_create_from_uint8_rgb(uint8_t r, uint8_t g,
                                                           uint8_t b);
+extern inline scg_color_t scg_color_create_from_uint8_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
 extern inline void scg_color_to_rgba_uint8(scg_color_t color, uint8_t out[4]);
 
 #define SCG_COLOR_WHITE scg_color_create_from_rgb(1.0f, 1.0f, 1.0f)
@@ -158,15 +172,16 @@ extern void scg_screen_set_blend_mode(scg_screen_t *screen,
 extern void scg_screen_set_draw_color(scg_screen_t *screen, scg_color_t color);
 extern void scg_screen_clear(scg_screen_t *screen);
 extern void scg_screen_draw_line(scg_screen_t *screen, int x0, int y0, int x1,
-                                 int y1, scg_color_t color);
+                                 int y1);
 extern void scg_screen_draw_rect(scg_screen_t *screen, int x, int y, int w,
                                  int h, scg_color_t color);
 extern void scg_screen_fill_rect(scg_screen_t *screen, int x, int y, int w,
                                  int h);
-extern void scg_screen_draw_image(scg_screen_t *screen, scg_image_t image,
+extern void scg_screen_draw_image(scg_screen_t *screen, scg_image_t *image, scg_rectangle_t src_rect, scg_rectangle_t dest_rect);
+extern void scg_screen_draw_image_xy(scg_screen_t *screen, scg_image_t *image,
                                   int x, int y);
-extern void scg_screen_draw_image_with_transform(scg_screen_t *screen,
-                                                 scg_image_t image, int x,
+extern void scg_screen_draw_image_transform(scg_screen_t *screen,
+                                                 scg_image_t *image, int x,
                                                  int y, float32_t angle,
                                                  float32_t scalex,
                                                  float32_t scaley);
@@ -408,6 +423,23 @@ inline float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
 }
 
 //
+// scg_rectangle_create implementation
+//
+
+inline scg_rectangle_t scg_rectangle_create(int x, int y, int w, int h) {
+	return (scg_rectangle_t){
+		.x = x,
+		.y = y,
+		.w = w,
+		.h = h,
+		.x0 = x,
+		.y0 = y,
+		.x1 = x + w,
+		.y1 = y + h
+	};
+}
+
+//
 // scg_color_create_from_rgb implementation
 //
 
@@ -436,6 +468,20 @@ inline scg_color_t scg_color_create_from_uint8_rgb(uint8_t r, uint8_t g,
     float32_t bf = (float32_t)b / 255.0f;
 
     return scg_color_create_from_rgb(rf, gf, bf);
+}
+
+
+//
+// scg_color_create_from_uint8_rgba implementation
+//
+
+inline scg_color_t scg_color_create_from_uint8_rgba(uint8_t r, uint8_t g, uint8_t b, uint8_t a) {
+    float32_t rf = (float32_t)r / 255.0f;
+    float32_t gf = (float32_t)g / 255.0f;
+    float32_t bf = (float32_t)b / 255.0f;
+    float32_t af = (float32_t)a / 255.0f;
+
+    return scg_color_create_from_rgba(rf, gf, bf, af);
 }
 
 //
@@ -542,6 +588,10 @@ scg_return_status_t scg_image_create_from_bmp(scg_image_t *image,
     }
     mod_color = scg_color_create_from_uint8_rgb(r, g, b);
 
+	size_t num_bytes = surface->w * surface->h * sizeof(uint32_t); //surface->pitch * surface->h;
+	uint32_t *pixels = malloc(num_bytes);
+	memcpy(pixels, surface->pixels, num_bytes);
+
     image->width = surface->w;
     image->height = surface->h;
     image->sdl_texture = texture;
@@ -551,7 +601,7 @@ scg_return_status_t scg_image_create_from_bmp(scg_image_t *image,
     image->mod_color = mod_color;
     image->locked = SCG_FALSE;
     image->pitch = surface->pitch;
-    image->pixels = NULL;
+    image->pixels = pixels;
 
     SDL_FreeSurface(surface);
 
@@ -597,9 +647,15 @@ void scg_image_unlock(scg_image_t *image) {
     image->locked = SCG_FALSE;
 }
 
+//
+// scg_image_map_uint32_to_rgba implementation
+//
+
 scg_color_t scg_image_map_uint32_to_rgba(scg_image_t *image, uint32_t pixel) {
 	uint8_t r, g, b, a;
-	SDL_GetRGBA(pixel, image->pixel_format, &r, &g, )
+	SDL_GetRGBA(pixel, image->pixel_format, &r, &g, &b, &a);
+
+	return scg_color_create_from_uint8_rgba(r, g, b, a);
 }
 
 //
@@ -648,6 +704,10 @@ void scg_image_set_mod_color(scg_image_t *image, scg_color_t color) {
 //
 
 void scg_image_destroy(scg_image_t *image) {
+	if (image->pixels != NULL && image->locked == SCG_FALSE) {
+		free(image->pixels);
+	}
+
     SDL_FreeFormat(image->pixel_format);
     SDL_DestroyTexture(image->sdl_texture);
 }
@@ -831,6 +891,15 @@ void scg_screen_clear(scg_screen_t *screen) {
 }
 
 //
+// scg_screen_draw_line implementation
+//
+
+void scg_screen_draw_line(scg_screen_t *screen, int x0, int y0, int x1,
+		int y1) {
+	SDL_RenderDrawLine(screen->sdl_renderer, x0, y0, x1, y1);
+}
+
+//
 // scg_screen_fill_rect implementation
 //
 
@@ -844,28 +913,39 @@ void scg_screen_fill_rect(scg_screen_t *screen, int x, int y, int w, int h) {
 // scg_screen_draw_image implementation
 //
 
-void scg_screen_draw_image(scg_screen_t *screen, scg_image_t image, int x,
-                           int y) {
-    SDL_Rect dest_rect =
-        (SDL_Rect){.x = x, .y = y, .w = image.width, .h = image.height};
+void scg_screen_draw_image(scg_screen_t *screen, scg_image_t *image, scg_rectangle_t src_rect, scg_rectangle_t dest_rect) {
+	SDL_Rect sdl_src_rect = (SDL_Rect){.x = src_rect.x, .y = src_rect.y, .w = src_rect.w, .h = src_rect.h};
+	SDL_Rect sdl_dest_rect = (SDL_Rect){.x = dest_rect.x, .y = dest_rect.y, .w = dest_rect.w, .h = dest_rect.h};
 
-    SDL_RenderCopy(screen->sdl_renderer, image.sdl_texture, NULL, &dest_rect);
+    SDL_RenderCopy(screen->sdl_renderer, image->sdl_texture, &sdl_src_rect, &sdl_dest_rect);
 }
 
 //
-// scg_screen_draw_image_with_transform implementation
+// scg_screen_draw_image_xy implementation
 //
 
-void scg_screen_draw_image_with_transform(scg_screen_t *screen,
-                                          scg_image_t image, int x, int y,
+void scg_screen_draw_image_xy(scg_screen_t *screen, scg_image_t *image, int x,
+                           int y) {
+    SDL_Rect dest_rect =
+        (SDL_Rect){.x = x, .y = y, .w = image->width, .h = image->height};
+
+    SDL_RenderCopy(screen->sdl_renderer, image->sdl_texture, NULL, &dest_rect);
+}
+
+//
+// scg_screen_draw_image_transform implementation
+//
+
+void scg_screen_draw_image_transform(scg_screen_t *screen,
+                                          scg_image_t *image, int x, int y,
                                           float32_t angle, float32_t sx,
                                           float32_t sy) {
-    int w = (int)((float32_t)image.width * sx);
-    int h = (int)((float32_t)image.height * sy);
+    int w = (int)((float32_t)image->width * sx);
+    int h = (int)((float32_t)image->height * sy);
 
     SDL_Rect dest_rect = (SDL_Rect){.x = x, .y = y, .w = w, .h = h};
 
-    SDL_RenderCopyEx(screen->sdl_renderer, image.sdl_texture, NULL, &dest_rect,
+    SDL_RenderCopyEx(screen->sdl_renderer, image->sdl_texture, NULL, &dest_rect,
                      angle, NULL, SDL_FLIP_NONE);
 }
 

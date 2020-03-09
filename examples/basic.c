@@ -31,7 +31,7 @@ static void draw_background(scg_image_t *image) {
 int main(void) {
     const int width = 640;
     const int height = 360;
-    const int scale = 2;
+    const int scale = 1;
     const bool_t fullscreen = SCG_FALSE;
 
     scg_screen_t screen;
@@ -85,7 +85,7 @@ int main(void) {
         }
 
         scg_screen_clear(&screen);
-        scg_screen_draw_image(&screen, background_img, 0, 0);
+        scg_screen_draw_image_xy(&screen, &background_img, 0, 0);
         scg_screen_draw_string(&screen, "Hello, World!", screen.width / 2,
                                screen.height / 2, 1);
 

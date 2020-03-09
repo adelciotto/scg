@@ -4,7 +4,7 @@
 int main(void) {
     const int width = 640;
     const int height = 360;
-    const int scale = 2;
+    const int scale = 1;
     const bool_t fullscreen = SCG_FALSE;
 
     scg_screen_t screen;
@@ -58,15 +58,15 @@ int main(void) {
                                center_image_y + image.height + 16, SCG_TRUE);
 
         scg_image_set_blend_mode(&image, SCG_BLEND_MODE_NONE);
-        scg_screen_draw_image(&screen, image, image_blend_none_x,
+        scg_screen_draw_image_xy(&screen, &image, image_blend_none_x,
                               center_image_y);
 
         scg_image_set_blend_mode(&image, SCG_BLEND_MODE_BLEND);
-        scg_screen_draw_image(&screen, image, image_blend_alpha_x,
+        scg_screen_draw_image_xy(&screen, &image, image_blend_alpha_x,
                               center_image_y);
 
         scg_image_set_blend_mode(&image, SCG_BLEND_MODE_MOD);
-        scg_screen_draw_image(&screen, image, image_blend_mask_x,
+        scg_screen_draw_image_xy(&screen, &image, image_blend_mask_x,
                               center_image_y);
 
         scg_screen_draw_fps(&screen);

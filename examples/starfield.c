@@ -76,7 +76,7 @@ static void draw_starfield(scg_screen_t *screen, starfield_t starfield) {
 }
 
 int main(void) {
-    const int screen_scale = 2;
+    const int screen_scale = 1;
     const bool_t fullscreen = SCG_FALSE;
 
     scg_screen_t screen;

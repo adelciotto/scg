@@ -42,7 +42,7 @@ static void update_and_draw(scg_screen_t *screen, float32_t t) {
 int main(void) {
     const int width = 640;
     const int height = 360;
-    const int scale = 2;
+    const int scale = 1;
     const bool_t fullscreen = SCG_FALSE;
 
     scg_screen_t screen;

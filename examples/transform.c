@@ -3,28 +3,39 @@
 
 int main(void) {
     const int width = 640;
-    const int height = 512;
-    const int scale = 1;
-    const bool_t fullscreen = SCG_FALSE;
+    const int height = 480;
+    const int window_scale = 1;
+    const bool fullscreen = false;
+
+    scg_error_t err = scg_init();
+    if (!err.nil) {
+        scg_log_error("Failed to initialise scg. Error: %s", err.message);
+        return -1;
+    }
+
+    scg_image_t back_buffer;
+    err = scg_image_new(&back_buffer, width, height);
+    if (!err.nil) {
+        scg_log_error("Failed to create back buffer. Error: %s", err.message);
+        return -1;
+    }
 
     scg_screen_t screen;
-    scg_return_status_t return_status = scg_screen_create(
-        &screen, "transform", width, height, scale, fullscreen);
-    if (return_status.is_error) {
-        scg_log_error("Failed to create screen. Error: %s",
-                      return_status.error_msg);
+    err = scg_screen_new(&screen, "SCG Example: Transform", &back_buffer,
+                         window_scale, fullscreen);
+    if (!err.nil) {
+        scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
     }
     scg_screen_log_info(&screen);
 
     scg_keyboard_t keyboard;
-    scg_keyboard_create(&keyboard);
+    scg_keyboard_new(&keyboard);
 
     scg_image_t image;
-    return_status = scg_image_create_from_bmp(&image, "assets/ball.bmp");
-    if (return_status.is_error == SCG_TRUE) {
-        scg_log_error("Failed to create image. Error: %s",
-                      return_status.error_msg);
+    err = scg_image_new_from_bmp(&image, "assets/ball.bmp");
+    if (!err.nil) {
+        scg_log_error("Failed to create image. Error: %s", err.message);
         return -1;
     }
 
@@ -38,14 +49,14 @@ int main(void) {
 
         elapsed_time += 1.2f * screen.target_time_per_frame_secs;
 
-        scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_NONE);
-        scg_screen_clear(&screen, clear_color);
-        scg_screen_draw_fps(&screen);
+        scg_image_clear(&back_buffer, clear_color);
 
-        scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_ALPHA);
-        scg_screen_draw_image_with_transform(
-            &screen, image, screen.width / 2 - image.width,
+        scg_image_set_blend_mode(&back_buffer, SCG_BLEND_MODE_ALPHA);
+        scg_image_draw_image_transform(
+            &back_buffer, &image, screen.width / 2 - image.width,
             screen.height / 2 - image.height, elapsed_time, 2.0f, 2.0f);
+
+        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);
@@ -53,5 +64,8 @@ int main(void) {
 
     scg_image_destroy(&image);
     scg_screen_destroy(&screen);
+    scg_image_destroy(&back_buffer);
+    scg_quit();
+
     return 0;
 }

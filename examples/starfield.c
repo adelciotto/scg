@@ -2,15 +2,15 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-const int gscreen_w = 400;
-const int gscreen_h = 240;
+const int gscreen_w = 640;
+const int gscreen_h = 480;
 
 typedef struct star_t {
     float32_t x;
     float32_t y;
     int layer_index;
     float32_t layer_modifier;
-    bool_t is_super_fast;
+    bool is_super_fast;
 } star_t;
 
 typedef struct starfield_t {
@@ -31,7 +31,7 @@ static void init_starfield(starfield_t *starfield, int num_stars,
 
     for (int i = 0; i < num_stars; i++) {
         star_t *current = &starfield->stars[i];
-        bool_t is_super_fast = i % num_stars == 1;
+        bool is_super_fast = i % num_stars == 1;
 
         current->x = (float32_t)(rand() % gscreen_w);
         current->y = (float32_t)(rand() % gscreen_h);
@@ -57,40 +57,53 @@ static void update_starfield(starfield_t starfield, float32_t animation_time) {
     }
 }
 
-static void draw_starfield(scg_screen_t *screen, starfield_t starfield) {
+static void draw_starfield(scg_image_t *back_buffer, starfield_t starfield) {
     for (int i = 0; i < starfield.num_stars; i++) {
         scg_pixel_t star_color = SCG_COLOR_WHITE;
         star_t *current = &starfield.stars[i];
 
-        star_color.color.a =
-            (uint8_t)((float32_t)star_color.color.a * current->layer_modifier);
+        star_color.data.a =
+            (uint8_t)((float32_t)star_color.data.a * current->layer_modifier);
 
-        if (current->is_super_fast == SCG_TRUE) {
-            scg_screen_fill_rect(screen, current->x, current->y,
-                                 starfield.star_size, starfield.star_size * 2,
-                                 star_color);
+        if (current->is_super_fast) {
+            scg_image_fill_rect(back_buffer, (int)current->x, (int)current->y,
+                                starfield.star_size, starfield.star_size * 2,
+                                star_color);
         } else {
-            scg_screen_set_pixel(screen, current->x, current->y, star_color);
+            scg_image_set_pixel(back_buffer, (int)current->x, (int)current->y,
+                                star_color);
         }
     }
 }
 
 int main(void) {
-    const int screen_scale = 2;
-    const bool_t fullscreen = SCG_FALSE;
+    const int window_scale = 1;
+    const bool fullscreen = false;
+
+    scg_error_t err = scg_init();
+    if (!err.nil) {
+        scg_log_error("Failed to initialise scg. Error: %s", err.message);
+        return -1;
+    }
+
+    scg_image_t back_buffer;
+    err = scg_image_new(&back_buffer, gscreen_w, gscreen_h);
+    if (!err.nil) {
+        scg_log_error("Failed to create back buffer. Error: %s", err.message);
+        return -1;
+    }
 
     scg_screen_t screen;
-    scg_return_status_t return_status = scg_screen_create(
-        &screen, "starfield", gscreen_w, gscreen_h, screen_scale, fullscreen);
-    if (return_status.is_error) {
-        scg_log_error("Failed to create screen. Error: %s",
-                      return_status.error_msg);
+    err = scg_screen_new(&screen, "SCG Example: Starfield", &back_buffer,
+                         window_scale, fullscreen);
+    if (!err.nil) {
+        scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
     }
     scg_screen_log_info(&screen);
 
     scg_keyboard_t keyboard;
-    scg_keyboard_create(&keyboard);
+    scg_keyboard_new(&keyboard);
 
     srand(scg_get_performance_counter());
 
@@ -110,13 +123,12 @@ int main(void) {
 
         update_starfield(starfield, screen.target_time_per_frame_secs);
 
-        scg_screen_clear(&screen, clear_color);
+        scg_image_clear(&back_buffer, clear_color);
 
-        scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_ALPHA);
-        draw_starfield(&screen, starfield);
+        scg_image_set_blend_mode(&back_buffer, SCG_BLEND_MODE_ALPHA);
+        draw_starfield(&back_buffer, starfield);
 
-        scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_NONE);
-        scg_screen_draw_fps(&screen);
+        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);
@@ -124,5 +136,8 @@ int main(void) {
 
     free(starfield.stars);
     scg_screen_destroy(&screen);
+    scg_image_destroy(&back_buffer);
+    scg_quit();
+
     return 0;
 }

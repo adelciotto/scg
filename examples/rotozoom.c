@@ -4,54 +4,73 @@
 // Rotozoom effect implemented with help from the following references:
 // - https://seancode.com/demofx/
 
-static void draw_image_with_rotozoom(scg_screen_t *screen, scg_image_t image,
+static void draw_image_with_rotozoom(scg_image_t *back_buffer, scg_image_t *src,
                                      float32_t angle, float32_t scale) {
-    int screen_w = screen->width;
-    int screen_h = screen->height;
-    int image_w = image.width;
-    int image_h = image.height;
+    int w = back_buffer->width;
+    int h = back_buffer->height;
+    const int src_w = src->width;
+    const int src_h = src->height;
 
     float32_t s = sinf(angle);
     float32_t c = cosf(angle);
 
-    for (int y = 0; y < screen_h; y++) {
-        for (int x = 0; x < screen_w; x++) {
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
             float32_t tx = (x * c - y * s) * scale;
             float32_t ty = (x * s + y * c) * scale;
 
-            int col = (int)(fabs(tx)) % image_w;
-            int row = (int)(fabs(ty)) % image_h;
+            // no need for mod because image width is 256px
+            int src_x = (int)tx & 255;
 
-            scg_pixel_t pixel = image.pixels[row * image_w + col];
-            scg_screen_set_pixel(screen, x, y, pixel);
+            int src_y = (int)ty % src_h;
+            while (src_y < 0) {
+                src_y += src_h;
+            }
+
+            int src_i = scg_pixel_index_from_xy(src_x, src_y, src_w);
+            scg_pixel_t color = scg_pixel_new_uint32(src->pixels[src_i]);
+
+            int dest_i = scg_pixel_index_from_xy(x, y, w);
+            back_buffer->pixels[dest_i] = color.packed;
         }
     }
 }
 
 int main(void) {
-    const int width = 400;
-    const int height = 240;
-    const int scale = 2;
-    const bool_t fullscreen = SCG_FALSE;
+    const int width = 640;
+    const int height = 480;
+    const int window_scale = 1;
+    const bool fullscreen = false;
+
+    scg_error_t err = scg_init();
+    if (!err.nil) {
+        scg_log_error("Failed to initialise scg. Error: %s", err.message);
+        return -1;
+    }
+
+    scg_image_t back_buffer;
+    err = scg_image_new(&back_buffer, width, height);
+    if (!err.nil) {
+        scg_log_error("Failed to create back buffer. Error: %s", err.message);
+        return -1;
+    }
 
     scg_screen_t screen;
-    scg_return_status_t return_status = scg_screen_create(
-        &screen, "rotozoom", width, height, scale, fullscreen);
-    if (return_status.is_error == SCG_TRUE) {
-        scg_log_error("Failed to create screen. Error: %s",
-                      return_status.error_msg);
+    err = scg_screen_new(&screen, "SCG Example: Rotozoom", &back_buffer,
+                         window_scale, fullscreen);
+    if (!err.nil) {
+        scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
     }
     scg_screen_log_info(&screen);
 
     scg_keyboard_t keyboard;
-    scg_keyboard_create(&keyboard);
+    scg_keyboard_new(&keyboard);
 
     scg_image_t image;
-    return_status = scg_image_create_from_bmp(&image, "assets/ball.bmp");
-    if (return_status.is_error == SCG_TRUE) {
-        scg_log_error("Failed to create image. Error: %s",
-                      return_status.error_msg);
+    err = scg_image_new_from_bmp(&image, "assets/2ndreal.bmp");
+    if (!err.nil) {
+        scg_log_error("Failed to create image. Error: %s", err.message);
         return -1;
     }
 
@@ -65,13 +84,13 @@ int main(void) {
 
         elapsed_time += 1.0f * screen.target_time_per_frame_secs;
 
-        scg_screen_clear(&screen, clear_color);
+        scg_image_clear(&back_buffer, clear_color);
 
-        scg_screen_set_blend_mode(&screen, SCG_BLEND_MODE_ALPHA);
-        draw_image_with_rotozoom(&screen, image, elapsed_time,
-                                 sinf(elapsed_time * 0.5f));
+        float32_t scale = 0.5f + sinf(elapsed_time * 0.5f) * 2.0f;
+        float32_t angle = elapsed_time;
+        draw_image_with_rotozoom(&back_buffer, &image, angle, scale);
 
-        scg_screen_draw_fps(&screen);
+        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);
@@ -79,5 +98,8 @@ int main(void) {
 
     scg_image_destroy(&image);
     scg_screen_destroy(&screen);
+    scg_image_destroy(&back_buffer);
+    scg_quit();
+
     return 0;
 }

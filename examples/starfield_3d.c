@@ -2,14 +2,14 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-const int gscreen_w = 400;
-const int gscreen_h = 240;
+const int gscreen_w = 640;
+const int gscreen_h = 480;
 
 typedef struct star_t {
     float32_t x;
     float32_t y;
     float32_t z;
-    bool_t is_super_fast;
+    bool is_super_fast;
 } star_t;
 
 typedef struct starfield_t {
@@ -39,7 +39,7 @@ static void init_starfield(starfield_t *starfield, int num_stars,
 
     for (int i = 0; i < num_stars; i++) {
         star_t *current = &starfield->stars[i];
-        bool_t is_super_fast = i % num_stars == 1;
+        bool is_super_fast = i % num_stars == 1;
 
         current->x =
             (float32_t)(rand() % gscreen_w) - (float32_t)gscreen_w / 2.0f;
@@ -66,7 +66,7 @@ static void update_starfield(starfield_t starfield, float32_t animation_time) {
     }
 }
 
-static void draw_starfield(scg_screen_t *screen, starfield_t starfield) {
+static void draw_starfield(scg_image_t *back_buffer, starfield_t starfield) {
     for (int i = 0; i < starfield.num_stars; i++) {
         scg_pixel_t star_color = SCG_COLOR_WHITE;
         star_t *current = &starfield.stars[i];
@@ -74,9 +74,9 @@ static void draw_starfield(scg_screen_t *screen, starfield_t starfield) {
         float32_t shade =
             scg_max_float32(1.0f - current->z / starfield.max_distance, 0.0f);
 
-        star_color.color.r = (uint8_t)((float32_t)star_color.color.r * shade);
-        star_color.color.g = (uint8_t)((float32_t)star_color.color.g * shade);
-        star_color.color.b = (uint8_t)((float32_t)star_color.color.b * shade);
+        star_color.data.r = (uint8_t)((float32_t)star_color.data.r * shade);
+        star_color.data.g = (uint8_t)((float32_t)star_color.data.g * shade);
+        star_color.data.b = (uint8_t)((float32_t)star_color.data.b * shade);
 
         float32_t z = scg_max_float32(current->z, 1.0f);
         float32_t x = (current->x * starfield.horizontal_view_distance) / z;
@@ -84,31 +84,42 @@ static void draw_starfield(scg_screen_t *screen, starfield_t starfield) {
         float32_t y = (float32_t)gscreen_h / 2.0f -
                       ((current->y * starfield.vertical_view_distance) / z);
 
-        scg_screen_set_pixel(screen, x, y, star_color);
+        scg_image_set_pixel(back_buffer, (int)x, (int)y, star_color);
     }
 }
 
 int main(void) {
-    const int screen_scale = 2;
-    const bool_t fullscreen = SCG_FALSE;
+    const int window_scale = 1;
+    const bool fullscreen = false;
+
+    scg_error_t err = scg_init();
+    if (!err.nil) {
+        scg_log_error("Failed to initialise scg. Error: %s", err.message);
+        return -1;
+    }
+
+    scg_image_t back_buffer;
+    err = scg_image_new(&back_buffer, gscreen_w, gscreen_h);
+    if (!err.nil) {
+        scg_log_error("Failed to create back buffer. Error: %s", err.message);
+        return -1;
+    }
 
     scg_screen_t screen;
-    scg_return_status_t return_status =
-        scg_screen_create(&screen, "starfield 3D", gscreen_w, gscreen_h,
-                          screen_scale, fullscreen);
-    if (return_status.is_error) {
-        scg_log_error("Failed to create screen. Error: %s",
-                      return_status.error_msg);
+    err = scg_screen_new(&screen, "SCG Example: Starfield", &back_buffer,
+                         window_scale, fullscreen);
+    if (!err.nil) {
+        scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
     }
     scg_screen_log_info(&screen);
 
     scg_keyboard_t keyboard;
-    scg_keyboard_create(&keyboard);
+    scg_keyboard_new(&keyboard);
 
     srand(scg_get_performance_counter());
 
-    const int num_stars = 2000;
+    const int num_stars = 4000;
     const float32_t world_speed = 120.0f;
     const float32_t max_distance = 300.0f;
 
@@ -124,11 +135,11 @@ int main(void) {
 
         update_starfield(starfield, screen.target_time_per_frame_secs);
 
-        scg_screen_clear(&screen, clear_color);
+        scg_image_clear(&back_buffer, clear_color);
 
-        draw_starfield(&screen, starfield);
+        draw_starfield(&back_buffer, starfield);
 
-        scg_screen_draw_fps(&screen);
+        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);
@@ -136,5 +147,8 @@ int main(void) {
 
     free(starfield.stars);
     scg_screen_destroy(&screen);
+    scg_image_destroy(&back_buffer);
+    scg_quit();
+
     return 0;
 }

@@ -64,10 +64,20 @@ make {{example_name}} DEBUG=1
 
 ## Examples
 
-Basic | Plasma | Image | Transform | Rotozoom | Tunnel | Starfield | Starfield 3D | Voxel Space
---- | --- | --- | --- | --- | --- | --- | --- | ---
-![basic](/previews/basic.png) | ![plasma](/previews/plasma.png) | ![image](/previews/image.png) | ![transform](/previews/transform.png) | ![rotozoom](/previews/rotozoom.png) | ![tunnel](/previews/tunnel.png) | ![starfield](/previews/starfield.png) | ![starfield-3d](/previews/starfield_3d.png) | ![voxel-space](/previews/voxel_space.png)
-[Source](/examples/basic.c) | [Source](/examples/plasma.c) | [Source](examples/image.c) | [Source](examples/transform.c) | [Source](examples/rotozoom.c) | [Source](examples/tunnel.c) | [Source](examples/starfield.c) | [Source](examples/starfield_3d.c) | [Source](examples/voxel_space.c)
+Basic | Plasma | Image
+--- | --- | ---
+![basic](/previews/basic.png) | ![plasma](/previews/plasma.png) | ![image](/previews/image.png)
+[Source](/examples/basic.c) | [Source](/examples/plasma.c) | [Source](examples/image.c)
+
+Transform | Rotozoom | Tunnel
+--- | --- | ---
+![transform](/previews/transform.png) | ![rotozoom](/previews/rotozoom.png) | ![tunnel](/previews/tunnel.png)
+[Source](examples/transform.c) | [Source](examples/rotozoom.c) | [Source](examples/tunnel.c)
+
+Starfield | Starfield 3D | Voxel Space
+--- | --- | ---
+![starfield](/previews/starfield.png) | ![starfield-3d](/previews/starfield_3d.png) | ![voxel-space](/previews/voxel_space.png)
+[Source](examples/starfield.c) | [Source](examples/starfield_3d.c) | [Source](examples/voxel_space.c)
 
 ## Converting audio
 

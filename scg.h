@@ -204,7 +204,7 @@ struct scg_sound_t {
     SDL_AudioSpec sdl_spec;
     uint32_t length;
     uint8_t *buffer;
-    int play_offset;
+    uint32_t play_offset;
     uint8_t *end_position;
     bool is_playing;
     bool loop;
@@ -212,9 +212,9 @@ struct scg_sound_t {
 
 struct scg_sound_device_t {
     SDL_AudioDeviceID device_id;
-    int freq;
-    uint8_t channels;
-    uint16_t samples;
+    int frequency;
+    uint8_t num_channels;
+    uint16_t num_samples;
     int bytes_per_sample;
     int latency_sample_count;
     uint32_t buffer_size;
@@ -939,46 +939,50 @@ void scg_screen_destroy(scg_screen_t *screen) {
 
 scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
                                  int target_fps) {
-    SDL_AudioSpec want, have;
+    SDL_AudioSpec desired, obtained;
 
-    int channels = 2;
-    size_t bytes_per_sample = sizeof(int16_t) * channels;
+    int desired_num_channels = 2;
+    size_t bytes_per_sample = sizeof(int16_t) * desired_num_channels;
 
-    memset(&want, 0, sizeof(want));
-    want.freq = 48000;
-    want.format = AUDIO_S16LSB;
-    want.channels = channels;
-    want.samples = want.freq * bytes_per_sample / target_fps;
-    want.callback = NULL;
+    memset(&desired, 0, sizeof(desired));
+    desired.freq = 48000;
+    desired.format = AUDIO_S16LSB;
+    desired.channels = desired_num_channels;
+    desired.samples = desired.freq * bytes_per_sample / target_fps;
+    desired.callback = NULL;
 
     SDL_AudioDeviceID device_id = SDL_OpenAudioDevice(
-        NULL, 0, &want, &have, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+        NULL, 0, &desired, &obtained, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
     if (device_id == 0) {
-        return scg_error_new(SDL_GetError());
+        const char *error_msg = scg__sprintf("Failed to open audio device. Error %s",
+                                             SDL_GetError());
+        return scg_error_new(error_msg);
     }
 
-    if (have.format != want.format) {
+    if (obtained.format != desired.format) {
         return scg_error_new("Audio device does not support format S16LSB");
     }
 
-    sound_device->device_id = device_id;
-    sound_device->freq = have.freq;
-    sound_device->channels = have.channels;
-    sound_device->samples = have.samples;
-    sound_device->bytes_per_sample = bytes_per_sample;
-    sound_device->latency_sample_count = sound_device->freq / 15;
-    sound_device->buffer_size =
-        sound_device->latency_sample_count * bytes_per_sample;
+    int obtained_frequency = obtained.freq;
+    int latency_sample_count = obtained_frequency / 15;
+    uint32_t buffer_size =  latency_sample_count * bytes_per_sample;
 
-    sound_device->buffer =
-        (uint8_t *)calloc(sound_device->latency_sample_count, bytes_per_sample);
-    if (sound_device->buffer == NULL) {
+    uint8_t *buffer = calloc(latency_sample_count, bytes_per_sample);
+    if (buffer == NULL) {
         const char *error_msg =
             scg__sprintf("Failed to allocate memory for sound buffer. bytes=%d",
                          sound_device->latency_sample_count * bytes_per_sample);
         return scg_error_new(error_msg);
     }
 
+    sound_device->device_id = device_id;
+    sound_device->frequency = obtained_frequency;
+    sound_device->num_channels = obtained.channels;
+    sound_device->num_samples = obtained.samples;
+    sound_device->bytes_per_sample = bytes_per_sample;
+    sound_device->latency_sample_count = latency_sample_count;
+    sound_device->buffer_size = buffer_size;
+    sound_device->buffer = buffer;
     sound_device->num_sounds = 0;
 
     SDL_PauseAudioDevice(device_id, 0);
@@ -993,8 +997,8 @@ scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
 void scg_sound_device_log_info(scg_sound_device_t *sound_device) {
     scg_log_info("sound device has id:%d, channels:%d, samples/sec:%d, "
                  "samples/frame:%d, bytes/sample:%d",
-                 sound_device->device_id, sound_device->channels,
-                 sound_device->freq, sound_device->latency_sample_count,
+                 sound_device->device_id, sound_device->num_channels,
+                 sound_device->frequency, sound_device->latency_sample_count,
                  sound_device->bytes_per_sample);
 }
 
@@ -1014,7 +1018,9 @@ scg_error_t scg_sound_new_from_wav(scg_sound_device_t *sound_device,
     uint8_t *buffer;
 
     if (SDL_LoadWAV(filepath, &spec, &buffer, &length) == NULL) {
-        return scg_error_new(SDL_GetError());
+        const char *error_msg = scg__sprintf("Failed to load WAV file %s. Error %s",
+                                             filepath, SDL_GetError());
+        return scg_error_new(error_msg);
     }
 
     sound->sdl_spec = spec;
@@ -1054,22 +1060,30 @@ void scg_sound_device_update(scg_sound_device_t *sound_device) {
     for (int i = 0; i < sound_device->num_sounds; i++) {
         scg_sound_t *sound = sound_device->sounds[i];
 
-        if (sound->is_playing) {
-            if (sound->buffer + sound->play_offset >= sound->end_position) {
-                if (!sound->loop) {
-                    sound->is_playing = 0;
-                }
-                sound->play_offset = 0;
-            } else {
-                uint32_t temp_len =
-                    bytes_to_write > (sound->length - sound->play_offset)
-                        ? (sound->length - sound->play_offset)
-                        : bytes_to_write;
-                SDL_MixAudioFormat(
-                    sound_device->buffer, sound->buffer + sound->play_offset,
-                    AUDIO_S16LSB, temp_len, SDL_MIX_MAXVOLUME / 2);
-                sound->play_offset += temp_len;
+        if (!sound->is_playing) {
+            continue;
+        }
+
+        const uint8_t *current_play_position = sound->buffer + sound->play_offset;
+        const uint32_t remaining_bytes_to_play = sound->length - sound->play_offset;
+
+        if (current_play_position >= sound->end_position) {
+            if (!sound->loop) {
+                sound->is_playing = false;
             }
+
+            sound->play_offset = 0;
+        } else {
+            uint32_t bytes_to_mix =
+                (bytes_to_write > remaining_bytes_to_play)
+                    ? remaining_bytes_to_play
+                    : bytes_to_write;
+
+            SDL_MixAudioFormat(
+                sound_device->buffer, current_play_position,
+                AUDIO_S16LSB, bytes_to_mix, SDL_MIX_MAXVOLUME / 2);
+
+            sound->play_offset += bytes_to_mix;
         }
     }
 

@@ -29,14 +29,14 @@ int main(void) {
     const bool fullscreen = false;
 
     scg_error_t err = scg_init();
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to initialise scg. Error: %s", err.message);
         return -1;
     }
 
     scg_image_t back_buffer;
     err = scg_image_new(&back_buffer, width, height);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to create back buffer. Error: %s", err.message);
         return -1;
     }
@@ -44,7 +44,7 @@ int main(void) {
     scg_screen_t screen;
     err = scg_screen_new(&screen, "SCG Example: Basic", &back_buffer,
                          window_scale, fullscreen);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
     }
@@ -55,7 +55,7 @@ int main(void) {
 
     scg_sound_device_t sound_device;
     err = scg_sound_device_new(&sound_device, screen.target_frames_per_sec);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to open sound device. Error: %s", err.message);
         return -1;
     }
@@ -64,7 +64,7 @@ int main(void) {
     scg_sound_t music;
     err = scg_sound_new_from_wav(
         &sound_device, &music, "assets/arcade-music-loop-joshuaempyre.wav", 1);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to create sound. Error: %s", err.message);
         return -1;
     }

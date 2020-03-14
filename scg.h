@@ -32,12 +32,12 @@ extern "C" {
 #define scg_log_info(...) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
 
 typedef struct scg_error_t {
-    bool nil;
+    bool none;
     const char *message;
 } scg_error_t;
 
 #define scg_error_new(error_msg) ((scg_error_t){false, error_msg})
-#define scg_error_nil() ((scg_error_t){true, ""})
+#define scg_error_none() ((scg_error_t){true, ""})
 
 extern int scg_min_int(int val, int min);
 extern int scg_max_int(int val, int max);
@@ -368,7 +368,7 @@ scg_error_t scg_image_new(scg_image_t *image, int width, int height) {
     image->pixels = pixels;
     image->blend_mode = SCG_BLEND_MODE_NONE;
 
-    return scg_error_nil();
+    return scg_error_none();
 }
 
 //
@@ -428,7 +428,7 @@ scg_error_t scg_image_new_from_bmp(scg_image_t *image, const char *filepath) {
     // We no longer need the converted surface.
     SDL_FreeSurface(converted_surface);
 
-    return scg_error_nil();
+    return scg_error_none();
 }
 
 //
@@ -698,7 +698,7 @@ scg_error_t scg_init(void) {
         return scg_error_new(SDL_GetError());
     }
 
-    return scg_error_nil();
+    return scg_error_none();
 }
 
 //
@@ -769,7 +769,7 @@ scg_error_t scg_screen_new(scg_screen_t *screen, const char *title,
     screen->frame_metrics.target_fps = screen->target_frames_per_sec;
     screen->is_running = true;
 
-    return scg_error_nil();
+    return scg_error_none();
 }
 
 //
@@ -980,7 +980,7 @@ scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
 
     SDL_PauseAudioDevice(device_id, 0);
 
-    return scg_error_nil();
+    return scg_error_none();
 }
 
 //
@@ -1024,7 +1024,7 @@ scg_error_t scg_sound_new_from_wav(scg_sound_device_t *sound_device,
 
     sound_device->sounds[sound_device->num_sounds++] = sound;
 
-    return scg_error_nil();
+    return scg_error_none();
 }
 
 //

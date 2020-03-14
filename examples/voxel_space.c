@@ -27,13 +27,13 @@ static scg_error_t init(terrain_t *terrain, camera_t *camera) {
     scg_image_t color_map;
     scg_error_t err =
         scg_image_new_from_bmp(&color_map, "assets/color_map.bmp");
-    if (!err.nil) {
+    if (!err.none) {
         return err;
     }
 
     scg_image_t height_map;
     err = scg_image_new_from_bmp(&height_map, "assets/height_map.bmp");
-    if (!err.nil) {
+    if (!err.none) {
         return err;
     }
 
@@ -70,7 +70,7 @@ static scg_error_t init(terrain_t *terrain, camera_t *camera) {
     camera->horizon = 120.0f;
     camera->max_distance = 400.0f;
 
-    return scg_error_nil();
+    return scg_error_none();
 }
 
 // Reference: https://github.com/hughsk/glsl-fog
@@ -177,14 +177,14 @@ int main(void) {
     const bool fullscreen = false;
 
     scg_error_t err = scg_init();
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to initialise scg. Error: %s", err.message);
         return -1;
     }
 
     scg_image_t back_buffer;
     err = scg_image_new(&back_buffer, width, height);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to create back buffer. Error: %s", err.message);
         return -1;
     }
@@ -192,7 +192,7 @@ int main(void) {
     scg_screen_t screen;
     err = scg_screen_new(&screen, "SCG Example: Voxel Space", &back_buffer,
                          window_scale, fullscreen);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
     }
@@ -204,7 +204,7 @@ int main(void) {
     terrain_t terrain;
     camera_t camera;
     err = init(&terrain, &camera);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to initialise terrain. Error: %s", err.message);
         return -1;
     }

@@ -48,14 +48,14 @@ int main(void) {
     const bool fullscreen = false;
 
     scg_error_t err = scg_init();
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to initialise scg. Error: %s", err.message);
         return -1;
     }
 
     scg_image_t back_buffer;
     err = scg_image_new(&back_buffer, width, height);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to create back buffer. Error: %s", err.message);
         return -1;
     }
@@ -63,7 +63,7 @@ int main(void) {
     scg_screen_t screen;
     err = scg_screen_new(&screen, "SCG Example: Plasma", &back_buffer,
                          window_scale, fullscreen);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
     }
@@ -71,7 +71,7 @@ int main(void) {
 
     scg_image_t plasma_buffer;
     err = scg_image_new(&plasma_buffer, 128, 128);
-    if (!err.nil) {
+    if (!err.none) {
         scg_log_error("Failed to create plasma buffer image. Error: %s",
                       err.message);
         return -1;

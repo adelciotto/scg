@@ -90,6 +90,7 @@ ffmpeg -i assets/{example_sound}.wav -acodec pcm_s16le -ac 2 -ar 48000 assets/{e
 ## Attributions / References
 
 - This library wraps [SDL2](https://www.libsdl.org/).
+- The work here is inspired by [Javidx9's](https://github.com/OneLoneCoder) work on the [olcPixelGameEngine](https://github.com/OneLoneCoder/olcPixelGameEngine).
 - Music in the basic example is by [joshuaempyre](https://freesound.org/people/joshuaempyre/).
 	- Original link: https://freesound.org/people/joshuaempyre/sounds/251461/.
 - Space texture used in the tunnel example is by [webtreats](http://www.everystockphoto.com/photographer.php?photographer_id=71737)

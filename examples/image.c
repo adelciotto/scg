@@ -77,7 +77,7 @@ int main(void) {
         scg_image_draw_image(&back_buffer, &image, image_blend_mask_x,
                              center_image_y);
 
-        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
+        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

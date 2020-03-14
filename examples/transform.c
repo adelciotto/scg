@@ -47,7 +47,7 @@ int main(void) {
             scg_screen_close(&screen);
         }
 
-        elapsed_time += 1.2f * screen.target_time_per_frame_secs;
+        elapsed_time += 1.2f * screen.target_frame_time_secs;
 
         scg_image_clear(&back_buffer, clear_color);
 
@@ -56,7 +56,7 @@ int main(void) {
             &back_buffer, &image, screen.width / 2 - image.width,
             screen.height / 2 - image.height, elapsed_time, 2.0f, 2.0f);
 
-        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
+        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

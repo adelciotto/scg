@@ -54,7 +54,7 @@ int main(void) {
     scg_keyboard_new(&keyboard);
 
     scg_sound_device_t sound_device;
-    err = scg_sound_device_new(&sound_device, screen.target_frames_per_sec);
+    err = scg_sound_device_new(&sound_device, screen.target_fps);
     if (!err.none) {
         scg_log_error("Failed to open sound device. Error: %s", err.message);
         return -1;
@@ -77,7 +77,7 @@ int main(void) {
         }
 
         update_and_draw(&back_buffer);
-        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
+        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_sound_device_update(&sound_device);

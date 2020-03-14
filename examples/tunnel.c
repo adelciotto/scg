@@ -127,11 +127,11 @@ int main(void) {
             scg_screen_close(&screen);
         }
 
-        elapsed_time += 1.0f * screen.target_time_per_frame_secs;
+        elapsed_time += 1.0f * screen.target_frame_time_secs;
 
         draw_tunnel(&back_buffer, &tunnel, elapsed_time);
 
-        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
+        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

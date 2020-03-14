@@ -95,8 +95,8 @@ typedef struct scg_image_t {
 
 typedef struct scg_frame_metrics_t {
     int target_fps;
-    float64_t time_per_frame_secs;
-    float64_t time_per_frame_millisecs;
+    float64_t frame_time_secs;
+    float64_t frame_time_millisecs;
     float64_t fps;
 } scg_frame_metrics_t;
 
@@ -119,7 +119,7 @@ extern void scg_image_fill_rect(scg_image_t *image, int x, int y, int w, int h,
 extern void scg_image_draw_string(scg_image_t *image, const char *str, int x,
                                   int y, bool anchor_to_center,
                                   scg_pixel_t color);
-extern void scg_image_draw_fps(scg_image_t *image,
+extern void scg_image_draw_frame_metrics(scg_image_t *image,
                                scg_frame_metrics_t frame_metrics);
 extern void scg_image_destroy(scg_image_t *image);
 
@@ -141,7 +141,7 @@ typedef struct scg_sound_device_t scg_sound_device_t;
 typedef struct scg_sound_t scg_sound_t;
 
 extern scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
-                                        int frames_per_sec);
+                                        int target_fps);
 extern void scg_sound_device_log_info(scg_sound_device_t *sound_device);
 extern scg_error_t scg_sound_new_from_wav(scg_sound_device_t *sound_device,
                                           scg_sound_t *sound,
@@ -186,8 +186,8 @@ struct scg_screen_t {
     int height;
     int window_scale;
 
-    int target_frames_per_sec;
-    float64_t target_time_per_frame_secs;
+    int target_fps;
+    float64_t target_frame_time_secs;
     uint64_t last_frame_counter;
     float64_t frame_metrics_update_counter;
     scg_frame_metrics_t frame_metrics;
@@ -645,14 +645,17 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
 }
 
 //
-// scg_image_draw_fps implementation
+// scg_image_draw_frame_metrics implementation
 //
 
-void scg_image_draw_fps(scg_image_t *image, scg_frame_metrics_t frame_metrics) {
+void scg_image_draw_frame_metrics(scg_image_t *image, scg_frame_metrics_t frame_metrics) {
     float32_t fps = frame_metrics.fps;
-    ssize_t bsize = snprintf(NULL, 0, "fps:%.2f", fps);
+    float32_t frame_time_ms = frame_metrics.frame_time_millisecs;
+    const char *fmt = "fps:%.2f ms/f:%.4f";
+
+    ssize_t bsize = snprintf(NULL, 0, fmt, fps, frame_time_ms);
     char buffer[bsize];
-    snprintf(buffer, bsize + 1, "fps:%.2f", fps);
+    snprintf(buffer, bsize + 1, fmt, fps, frame_time_ms);
 
     scg_pixel_t color = SCG_COLOR_GREEN;
     float32_t target_fps = (float32_t)frame_metrics.target_fps;
@@ -663,7 +666,7 @@ void scg_image_draw_fps(scg_image_t *image, scg_frame_metrics_t frame_metrics) {
         color = SCG_COLOR_RED;
     }
 
-    // Draw the FPS counter with no alpha blending.
+    // Draw the metrics with no alpha blending.
     scg_blend_mode_t blend_mode = image->blend_mode;
     scg_image_set_blend_mode(image, SCG_BLEND_MODE_NONE);
     scg_image_draw_string(image, buffer, 10, 10, 0, color);
@@ -757,16 +760,16 @@ scg_error_t scg_screen_new(scg_screen_t *screen, const char *title,
     screen->width = w;
     screen->height = h;
     screen->window_scale = window_scale;
-    screen->target_frames_per_sec = scg__get_monitor_refresh_rate(display_mode);
-    screen->target_time_per_frame_secs =
-        1.0 / (float64_t)screen->target_frames_per_sec;
+    screen->target_fps = scg__get_monitor_refresh_rate(display_mode);
+    screen->target_frame_time_secs =
+        1.0 / (float64_t)screen->target_fps;
     screen->last_frame_counter = scg_get_performance_counter();
     screen->sdl_window = sdl_window;
     screen->sdl_renderer = sdl_renderer;
     screen->sdl_texture = sdl_texture;
     screen->back_buffer = back_buffer;
     screen->frame_metrics_update_counter = scg_get_performance_counter();
-    screen->frame_metrics.target_fps = screen->target_frames_per_sec;
+    screen->frame_metrics.target_fps = screen->target_fps;
     screen->is_running = true;
 
     return scg_error_none();
@@ -858,7 +861,7 @@ void scg_screen_present(scg_screen_t *screen) {
     // this, as trying to use SDL_Delay (sleeping) is dependant on other
     // factors.
     {
-        float64_t target_secs = screen->target_time_per_frame_secs;
+        float64_t target_secs = screen->target_frame_time_secs;
         float64_t elapsed_time_secs = scg_get_elapsed_time_secs(
             scg_get_performance_counter(), screen->last_frame_counter);
 
@@ -884,10 +887,10 @@ void scg_screen_present(scg_screen_t *screen) {
             scg_get_elapsed_time_secs(scg_get_performance_counter(),
                                       screen->frame_metrics_update_counter);
         if (elapsed_time_secs >= 1.0f) {
-            screen->frame_metrics.time_per_frame_secs =
+            screen->frame_metrics.frame_time_secs =
                 scg_get_elapsed_time_secs(end_frame_counter,
                                           screen->last_frame_counter);
-            screen->frame_metrics.time_per_frame_millisecs =
+            screen->frame_metrics.frame_time_millisecs =
                 scg_get_elapsed_time_millisecs(end_frame_counter,
                                                screen->last_frame_counter);
             screen->frame_metrics.fps =
@@ -909,7 +912,7 @@ void scg_screen_present(scg_screen_t *screen) {
 void scg_screen_log_info(scg_screen_t *screen) {
     scg_log_info("screen has w:%d, h:%d, scale:%d, target fps:%d",
                  screen->width, screen->height, screen->window_scale,
-                 screen->target_frames_per_sec);
+                 screen->target_fps);
 }
 
 //
@@ -935,7 +938,7 @@ void scg_screen_destroy(scg_screen_t *screen) {
 //
 
 scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
-                                 int frames_per_sec) {
+                                 int target_fps) {
     SDL_AudioSpec want, have;
 
     int channels = 2;
@@ -945,7 +948,7 @@ scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
     want.freq = 48000;
     want.format = AUDIO_S16LSB;
     want.channels = channels;
-    want.samples = want.freq * bytes_per_sample / frames_per_sec;
+    want.samples = want.freq * bytes_per_sample / target_fps;
     want.callback = NULL;
 
     SDL_AudioDeviceID device_id = SDL_OpenAudioDevice(

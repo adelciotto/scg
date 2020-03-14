@@ -82,7 +82,7 @@ int main(void) {
             scg_screen_close(&screen);
         }
 
-        elapsed_time += 1.0f * screen.target_time_per_frame_secs;
+        elapsed_time += 1.0f * screen.target_frame_time_secs;
 
         scg_image_clear(&back_buffer, clear_color);
 
@@ -90,7 +90,7 @@ int main(void) {
         float32_t angle = elapsed_time;
         draw_image_with_rotozoom(&back_buffer, &image, angle, scale);
 
-        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
+        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

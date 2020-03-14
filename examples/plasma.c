@@ -88,7 +88,7 @@ int main(void) {
             scg_screen_close(&screen);
         }
 
-        elapsed_time += 0.6f * screen.target_time_per_frame_secs;
+        elapsed_time += 0.6f * screen.target_frame_time_secs;
 
         draw_plasma(&plasma_buffer, elapsed_time);
 
@@ -99,7 +99,7 @@ int main(void) {
         scg_image_draw_image_transform(&back_buffer, &plasma_buffer, x, y,
                                        elapsed_time, 1.0f, 1.0f);
 
-        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
+        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

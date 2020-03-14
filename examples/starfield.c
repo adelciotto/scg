@@ -121,14 +121,14 @@ int main(void) {
             scg_screen_close(&screen);
         }
 
-        update_starfield(starfield, screen.target_time_per_frame_secs);
+        update_starfield(starfield, screen.target_frame_time_secs);
 
         scg_image_clear(&back_buffer, clear_color);
 
         scg_image_set_blend_mode(&back_buffer, SCG_BLEND_MODE_ALPHA);
         draw_starfield(&back_buffer, starfield);
 
-        scg_image_draw_fps(&back_buffer, screen.frame_metrics);
+        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
         scg_screen_present(&screen);

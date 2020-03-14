@@ -1138,6 +1138,7 @@ void scg_keyboard_update(scg_keyboard_t *keyboard) {
            sizeof(uint8_t) * SDL_NUM_SCANCODES);
 }
 
+// Bitmap font data taken from https://github.com/dhepper/font8x8.
 const char scg__font8x8[128][8] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},       // U+0000 (nul)
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},       // U+0001

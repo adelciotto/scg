@@ -165,11 +165,11 @@ typedef enum scg_key_code_t {
 typedef struct scg_keyboard_t scg_keyboard_t;
 
 extern void scg_keyboard_new(scg_keyboard_t *keyboard);
-extern int scg_keyboard_is_key_down(scg_keyboard_t *keyboard,
+extern bool scg_keyboard_is_key_down(scg_keyboard_t *keyboard,
                                     scg_key_code_t code);
-extern int scg_keyboard_is_key_up(scg_keyboard_t *keyboard,
+extern bool scg_keyboard_is_key_up(scg_keyboard_t *keyboard,
                                   scg_key_code_t code);
-extern int scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
+extern bool scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
                                          scg_key_code_t code);
 extern void scg_keyboard_update(scg_keyboard_t *keyboard);
 
@@ -1107,7 +1107,7 @@ void scg_keyboard_new(scg_keyboard_t *keyboard) {
 // scg_keyboard_is_key_down implementation
 //
 
-int scg_keyboard_is_key_down(scg_keyboard_t *keyboard, scg_key_code_t key) {
+bool scg_keyboard_is_key_down(scg_keyboard_t *keyboard, scg_key_code_t key) {
     return keyboard->current_key_states[key] == 1;
 }
 
@@ -1115,7 +1115,7 @@ int scg_keyboard_is_key_down(scg_keyboard_t *keyboard, scg_key_code_t key) {
 // scg_keyboard_is_key_up implementation
 //
 
-int scg_keyboard_is_key_up(scg_keyboard_t *keyboard, scg_key_code_t key) {
+bool scg_keyboard_is_key_up(scg_keyboard_t *keyboard, scg_key_code_t key) {
     return keyboard->current_key_states[key] == 0;
 }
 
@@ -1123,7 +1123,7 @@ int scg_keyboard_is_key_up(scg_keyboard_t *keyboard, scg_key_code_t key) {
 // scg_keyboard_is_key_triggered implementation
 //
 
-int scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
+bool scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
                                   scg_key_code_t key) {
     return keyboard->previous_key_states[key] == 0 &&
            keyboard->current_key_states[key] == 1;

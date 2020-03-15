@@ -1,10 +1,7 @@
-// Music in this demo is 'Arcade Music Loop.wav' by joshuaempyre.
-// Music link: https://freesound.org/people/joshuaempyre/sounds/251461/
-
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-static void update_and_draw(scg_image_t *back_buffer) {
+static void draw_frame(scg_image_t *back_buffer) {
     int w = back_buffer->width;
     int h = back_buffer->height;
 
@@ -53,39 +50,23 @@ int main(void) {
     scg_keyboard_t keyboard;
     scg_keyboard_new(&keyboard);
 
-    scg_sound_device_t sound_device;
-    err = scg_sound_device_new(&sound_device, screen.target_fps);
-    if (!err.none) {
-        scg_log_error("Failed to open sound device. Error: %s", err.message);
-        return -1;
-    }
-    scg_sound_device_log_info(&sound_device);
-
-    scg_sound_t music;
-    err = scg_sound_new_from_wav(
-        &sound_device, &music, "assets/arcade-music-loop-joshuaempyre.wav", 1);
-    if (!err.none) {
-        scg_log_error("Failed to create sound. Error: %s", err.message);
-        return -1;
-    }
-
-    scg_sound_play(&music);
+    scg_pixel_t clear_color = SCG_COLOR_WHITE;
 
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
         }
 
-        update_and_draw(&back_buffer);
+        scg_image_clear(&back_buffer, clear_color);
+
+        draw_frame(&back_buffer);
+
         scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
 
         scg_keyboard_update(&keyboard);
-        scg_sound_device_update(&sound_device);
-
         scg_screen_present(&screen);
     }
 
-    scg_sound_device_destroy(&sound_device);
     scg_screen_destroy(&screen);
     scg_image_destroy(&back_buffer);
     scg_quit();

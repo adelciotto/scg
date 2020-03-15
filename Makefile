@@ -15,10 +15,13 @@ ifeq ($(PROFILE), 1)
 endif
 
 .PHONY: default
-default: basic plasma image transform rotozoom tunnel starfield starfield_3d voxel_space
+default: basic audio plasma image transform rotozoom tunnel starfield starfield_3d voxel_space
 
 basic: examples/basic.c scg.h
 	$(CC) examples/basic.c -o basic $(CFLAGS) $(LDFLAGS) $(INCLUDES)
+
+audio: examples/audio.c scg.h
+	$(CC) examples/audio.c -o audio $(CFLAGS) $(LDFLAGS) $(INCLUDES)
 
 plasma: examples/plasma.c scg.h
 	$(CC) examples/plasma.c -o plasma $(CFLAGS) $(LDFLAGS) $(INCLUDES)
@@ -50,7 +53,7 @@ format:
 
 .PHONY: clean
 clean:
-	rm -f basic plasma image transform rotozoom tunnel starfield starfield_3d voxel_space
+	rm -f basic audio plasma image transform rotozoom tunnel starfield starfield_3d voxel_space
 	rm -f **/*.o
 	rm -rf *.dSYM
 	rm -f gmon.out

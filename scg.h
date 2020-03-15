@@ -114,13 +114,17 @@ extern void scg_image_draw_image(scg_image_t *dest, scg_image_t *src, int x,
 extern void scg_image_draw_image_transform(scg_image_t *dest, scg_image_t *src,
                                            int x, int y, float32_t angle,
                                            float32_t sx, float32_t sy);
+extern void scg_image_draw_line(scg_image_t *image, int x0, int y0, int x1,
+                                int y1, scg_pixel_t color);
+extern void scg_image_draw_rect(scg_image_t *image, int x, int y, int w, int h,
+                                scg_pixel_t color);
 extern void scg_image_fill_rect(scg_image_t *image, int x, int y, int w, int h,
                                 scg_pixel_t color);
 extern void scg_image_draw_string(scg_image_t *image, const char *str, int x,
                                   int y, bool anchor_to_center,
                                   scg_pixel_t color);
 extern void scg_image_draw_frame_metrics(scg_image_t *image,
-                               scg_frame_metrics_t frame_metrics);
+                                         scg_frame_metrics_t frame_metrics);
 extern void scg_image_destroy(scg_image_t *image);
 
 extern scg_error_t scg_init(void);
@@ -138,17 +142,20 @@ extern void scg_screen_close(scg_screen_t *screen);
 extern void scg_screen_destroy(scg_screen_t *screen);
 
 typedef struct scg_sound_device_t scg_sound_device_t;
-typedef struct scg_sound_t scg_sound_t;
 
 extern scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
                                         int target_fps);
 extern void scg_sound_device_log_info(scg_sound_device_t *sound_device);
+extern void scg_sound_device_update(scg_sound_device_t *sound_device);
+extern void scg_sound_device_destroy(scg_sound_device_t *sound_device);
+
+typedef struct scg_sound_t scg_sound_t;
+
 extern scg_error_t scg_sound_new_from_wav(scg_sound_device_t *sound_device,
                                           scg_sound_t *sound,
                                           const char *filepath, bool loop);
 extern void scg_sound_play(scg_sound_t *sound);
-extern void scg_sound_device_update(scg_sound_device_t *sound_device);
-extern void scg_sound_device_destroy(scg_sound_device_t *sound_device);
+extern float32_t scg_sound_get_position(scg_sound_t *sound);
 
 typedef enum scg_key_code_t {
     SCG_KEY_UP = SDL_SCANCODE_UP,
@@ -166,11 +173,11 @@ typedef struct scg_keyboard_t scg_keyboard_t;
 
 extern void scg_keyboard_new(scg_keyboard_t *keyboard);
 extern bool scg_keyboard_is_key_down(scg_keyboard_t *keyboard,
-                                    scg_key_code_t code);
+                                     scg_key_code_t code);
 extern bool scg_keyboard_is_key_up(scg_keyboard_t *keyboard,
-                                  scg_key_code_t code);
+                                   scg_key_code_t code);
 extern bool scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
-                                         scg_key_code_t code);
+                                          scg_key_code_t code);
 extern void scg_keyboard_update(scg_keyboard_t *keyboard);
 
 ///////////////
@@ -588,13 +595,93 @@ void scg_image_draw_image_transform(scg_image_t *dest, scg_image_t *src, int x,
 }
 
 //
+// scg_image_draw_line implementation
+//
+
+void scg_image_draw_line(scg_image_t *image, int x0, int y0, int x1, int y1,
+                         scg_pixel_t color) {
+    // Line is vertical
+    if (x0 == x1) {
+        if (y1 < y0) {
+            int tmp = y1;
+            y1 = y0;
+            y0 = tmp;
+        }
+
+        for (int y = y0; y <= y1; y++) {
+            scg_image_set_pixel(image, x0, y, color);
+        }
+
+        return;
+    }
+
+    // Line is horizontal
+    if (y0 == y1) {
+        if (x1 < x0) {
+            int tmp = x1;
+            x1 = x0;
+            x0 = tmp;
+        }
+
+        for (int x = x0; x <= x1; x++) {
+            scg_image_set_pixel(image, x, y0, color);
+        }
+
+        return;
+    }
+
+    int dx = abs(x1 - x0);
+    int dy = abs(y1 - y0);
+
+    int step_x = x0 < x1 ? 1 : -1;
+    int step_y = y0 < y1 ? 1 : -1;
+    int err = (dx > dy ? dx : -dy) / 2;
+    int e2 = 0;
+
+    for (;;) {
+        scg_image_set_pixel(image, x0, y0, color);
+
+        if (x0 == x1 && y0 == y1) {
+            break;
+        }
+
+        e2 = err;
+        if (e2 > -dx) {
+            err -= dy;
+            x0 += step_x;
+        }
+        if (e2 < dy) {
+            err += dx;
+            y0 += step_y;
+        }
+    }
+}
+
+//
+// scg_image_draw_rect implementation
+//
+
+void scg_image_draw_rect(scg_image_t *image, int x, int y, int w, int h,
+                         scg_pixel_t color) {
+    int minx = x;
+    int miny = y;
+    int maxx = minx + w;
+    int maxy = miny + h;
+
+    scg_image_draw_line(image, minx, miny, maxx, miny, color);
+    scg_image_draw_line(image, maxx, miny, maxx, maxy, color);
+    scg_image_draw_line(image, maxx, maxy, minx, maxy, color);
+    scg_image_draw_line(image, minx, maxy, minx, miny, color);
+}
+
+//
 // scg_image_fill_rect implementation
 //
 
 void scg_image_fill_rect(scg_image_t *image, int x, int y, int w, int h,
                          scg_pixel_t color) {
-    for (int i = 0; i < h; i++) {
-        for (int j = 0; j < w; j++) {
+    for (int i = 0; i <= h; i++) {
+        for (int j = 0; j <= w; j++) {
             scg_image_set_pixel(image, x + j, y + i, color);
         }
     }
@@ -625,9 +712,10 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
                            bool anchor_to_center, scg_pixel_t color) {
     int current_x = x;
     int current_y = y;
+    int horizontal_spacing = 1;
 
     if (anchor_to_center) {
-        int width = scg__string_width(str, SCG_FONT_SIZE);
+        int width = scg__string_width(str, SCG_FONT_SIZE + horizontal_spacing);
         current_x = x - width / 2;
         current_y -= SCG_FONT_SIZE / 2;
     }
@@ -640,7 +728,7 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
         scg__draw_char(image, scg__font8x8[char_code], current_x, current_y,
                        color);
 
-        current_x += SCG_FONT_SIZE + 1;
+        current_x += SCG_FONT_SIZE + horizontal_spacing;
     }
 }
 
@@ -648,7 +736,8 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
 // scg_image_draw_frame_metrics implementation
 //
 
-void scg_image_draw_frame_metrics(scg_image_t *image, scg_frame_metrics_t frame_metrics) {
+void scg_image_draw_frame_metrics(scg_image_t *image,
+                                  scg_frame_metrics_t frame_metrics) {
     float32_t fps = frame_metrics.fps;
     float32_t frame_time_ms = frame_metrics.frame_time_millisecs;
     const char *fmt = "fps:%.2f ms/f:%.4f";
@@ -761,8 +850,7 @@ scg_error_t scg_screen_new(scg_screen_t *screen, const char *title,
     screen->height = h;
     screen->window_scale = window_scale;
     screen->target_fps = scg__get_monitor_refresh_rate(display_mode);
-    screen->target_frame_time_secs =
-        1.0 / (float64_t)screen->target_fps;
+    screen->target_frame_time_secs = 1.0 / (float64_t)screen->target_fps;
     screen->last_frame_counter = scg_get_performance_counter();
     screen->sdl_window = sdl_window;
     screen->sdl_renderer = sdl_renderer;
@@ -791,65 +879,6 @@ bool scg_screen_is_running(scg_screen_t *screen) {
 
     return screen->is_running;
 }
-
-//
-// scg_screen_draw_line implementation
-//
-
-// void scg_screen_draw_line(scg_screen_t *screen, int px0, int py0, int px1,
-//                           int py1, scg_pixel_t color) {
-//     // Line is vertical
-//     // if (px0 == px1) {
-//     //     if (py1 < py0) {
-//     //         scg_swap_int(&py0, &py1);
-//     //     }
-
-//     //     for (int y = py0; y <= py1; y++) {
-//     //         scg_screen_set_pixel(screen, px0, y, color);
-//     //     }
-
-//     //     return;
-//     // }
-
-//     // Line is horizontal
-//     // if (py0 == py1) {
-//     //     if (px1 < px0) {
-//     //         scg_swap_int(&px0, &px1);
-//     //     }
-
-//     //     for (int x = px0; x <= px1; x++) {
-//     //         scg_screen_set_pixel(screen, x, py0, color);
-//     //     }
-
-//     //     return;
-//     // }
-
-//     int dx = abs(px1 - px0);
-//     int dy = abs(py1 - py0);
-
-//     int step_x = px0 < px1 ? 1 : -1;
-//     int step_y = py0 < py1 ? 1 : -1;
-//     int err = (dx > dy ? dx : -dy) / 2;
-//     int e2 = 0;
-
-//     for (;;) {
-//         scg_screen_set_pixel(screen, px0, py0, color);
-
-//         if (px0 == px1 && py0 == py1) {
-//             break;
-//         }
-
-//         e2 = err;
-//         if (e2 > -dx) {
-//             err -= dy;
-//             px0 += step_x;
-//         }
-//         if (e2 < dy) {
-//             err += dx;
-//             py0 += step_y;
-//         }
-//     }
-// }
 
 //
 // scg_screen_present implementation
@@ -887,9 +916,8 @@ void scg_screen_present(scg_screen_t *screen) {
             scg_get_elapsed_time_secs(scg_get_performance_counter(),
                                       screen->frame_metrics_update_counter);
         if (elapsed_time_secs >= 1.0f) {
-            screen->frame_metrics.frame_time_secs =
-                scg_get_elapsed_time_secs(end_frame_counter,
-                                          screen->last_frame_counter);
+            screen->frame_metrics.frame_time_secs = scg_get_elapsed_time_secs(
+                end_frame_counter, screen->last_frame_counter);
             screen->frame_metrics.frame_time_millisecs =
                 scg_get_elapsed_time_millisecs(end_frame_counter,
                                                screen->last_frame_counter);
@@ -954,8 +982,8 @@ scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
     SDL_AudioDeviceID device_id = SDL_OpenAudioDevice(
         NULL, 0, &desired, &obtained, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
     if (device_id == 0) {
-        const char *error_msg = scg__sprintf("Failed to open audio device. Error %s",
-                                             SDL_GetError());
+        const char *error_msg = scg__sprintf(
+            "Failed to open audio device. Error %s", SDL_GetError());
         return scg_error_new(error_msg);
     }
 
@@ -965,7 +993,7 @@ scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
 
     int obtained_frequency = obtained.freq;
     int latency_sample_count = obtained_frequency / 15;
-    uint32_t buffer_size =  latency_sample_count * bytes_per_sample;
+    uint32_t buffer_size = latency_sample_count * bytes_per_sample;
 
     uint8_t *buffer = calloc(latency_sample_count, bytes_per_sample);
     if (buffer == NULL) {
@@ -1003,6 +1031,68 @@ void scg_sound_device_log_info(scg_sound_device_t *sound_device) {
 }
 
 //
+// scg_sound_device_update implementation
+//
+
+void scg_sound_device_update(scg_sound_device_t *sound_device) {
+    memset(sound_device->buffer, 0, sound_device->buffer_size);
+
+    uint32_t target_queue_bytes = sound_device->buffer_size;
+    uint32_t bytes_to_write =
+        target_queue_bytes - SDL_GetQueuedAudioSize(sound_device->device_id);
+
+    for (int i = 0; i < sound_device->num_sounds; i++) {
+        scg_sound_t *sound = sound_device->sounds[i];
+
+        if (!sound->is_playing) {
+            continue;
+        }
+
+        const uint8_t *current_play_position =
+            sound->buffer + sound->play_offset;
+        const uint32_t remaining_bytes_to_play =
+            sound->length - sound->play_offset;
+
+        if (current_play_position >= sound->end_position) {
+            if (!sound->loop) {
+                sound->is_playing = false;
+            }
+
+            sound->play_offset = 0;
+        } else {
+            uint32_t bytes_to_mix = (bytes_to_write > remaining_bytes_to_play)
+                                        ? remaining_bytes_to_play
+                                        : bytes_to_write;
+
+            SDL_MixAudioFormat(sound_device->buffer, current_play_position,
+                               AUDIO_S16LSB, bytes_to_mix,
+                               SDL_MIX_MAXVOLUME / 2);
+
+            sound->play_offset += bytes_to_mix;
+        }
+    }
+
+    SDL_QueueAudio(sound_device->device_id, sound_device->buffer,
+                   bytes_to_write);
+}
+
+//
+// scg_sound_device_destroy_sounds implementation
+//
+
+void scg_sound_device_destroy(scg_sound_device_t *sound_device) {
+    SDL_PauseAudioDevice(sound_device->device_id, 1);
+    SDL_ClearQueuedAudio(sound_device->device_id);
+
+    for (int i = 0; i < sound_device->num_sounds; i++) {
+        SDL_FreeWAV(sound_device->sounds[i]->buffer);
+    }
+
+    free(sound_device->buffer);
+    SDL_CloseAudioDevice(sound_device->device_id);
+}
+
+//
 // scg_sound_new implementation
 //
 
@@ -1018,8 +1108,8 @@ scg_error_t scg_sound_new_from_wav(scg_sound_device_t *sound_device,
     uint8_t *buffer;
 
     if (SDL_LoadWAV(filepath, &spec, &buffer, &length) == NULL) {
-        const char *error_msg = scg__sprintf("Failed to load WAV file %s. Error %s",
-                                             filepath, SDL_GetError());
+        const char *error_msg = scg__sprintf(
+            "Failed to load WAV file %s. Error %s", filepath, SDL_GetError());
         return scg_error_new(error_msg);
     }
 
@@ -1047,64 +1137,15 @@ void scg_sound_play(scg_sound_t *sound) {
 }
 
 //
-// scg_sound_device_update implementation
+// scg_sound_get_position implementation
 //
 
-void scg_sound_device_update(scg_sound_device_t *sound_device) {
-    memset(sound_device->buffer, 0, sound_device->buffer_size);
-
-    uint32_t target_queue_bytes = sound_device->buffer_size;
-    uint32_t bytes_to_write =
-        target_queue_bytes - SDL_GetQueuedAudioSize(sound_device->device_id);
-
-    for (int i = 0; i < sound_device->num_sounds; i++) {
-        scg_sound_t *sound = sound_device->sounds[i];
-
-        if (!sound->is_playing) {
-            continue;
-        }
-
-        const uint8_t *current_play_position = sound->buffer + sound->play_offset;
-        const uint32_t remaining_bytes_to_play = sound->length - sound->play_offset;
-
-        if (current_play_position >= sound->end_position) {
-            if (!sound->loop) {
-                sound->is_playing = false;
-            }
-
-            sound->play_offset = 0;
-        } else {
-            uint32_t bytes_to_mix =
-                (bytes_to_write > remaining_bytes_to_play)
-                    ? remaining_bytes_to_play
-                    : bytes_to_write;
-
-            SDL_MixAudioFormat(
-                sound_device->buffer, current_play_position,
-                AUDIO_S16LSB, bytes_to_mix, SDL_MIX_MAXVOLUME / 2);
-
-            sound->play_offset += bytes_to_mix;
-        }
+float32_t scg_sound_get_position(scg_sound_t *sound) {
+    if (!sound->is_playing) {
+        return 0.0f;
     }
 
-    SDL_QueueAudio(sound_device->device_id, sound_device->buffer,
-                   bytes_to_write);
-}
-
-//
-// scg_sound_device_destroy_sounds implementation
-//
-
-void scg_sound_device_destroy(scg_sound_device_t *sound_device) {
-    SDL_PauseAudioDevice(sound_device->device_id, 1);
-    SDL_ClearQueuedAudio(sound_device->device_id);
-
-    for (int i = 0; i < sound_device->num_sounds; i++) {
-        SDL_FreeWAV(sound_device->sounds[i]->buffer);
-    }
-
-    free(sound_device->buffer);
-    SDL_CloseAudioDevice(sound_device->device_id);
+    return (float32_t)sound->play_offset / (float32_t)sound->length;
 }
 
 //
@@ -1138,7 +1179,7 @@ bool scg_keyboard_is_key_up(scg_keyboard_t *keyboard, scg_key_code_t key) {
 //
 
 bool scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
-                                  scg_key_code_t key) {
+                                   scg_key_code_t key) {
     return keyboard->previous_key_states[key] == 0 &&
            keyboard->current_key_states[key] == 1;
 }

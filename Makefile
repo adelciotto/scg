@@ -14,8 +14,20 @@ ifeq ($(PROFILE), 1)
 	CFLAGS += -pg
 endif
 
+EXAMPLES := \
+	basic \
+	audio \
+	plasma \
+	image \
+	transform \
+	rotozoom \
+	tunnel \
+	starfield \
+	starfield_3d \
+	voxel_space
+
 .PHONY: default
-default: basic audio plasma image transform rotozoom tunnel starfield starfield_3d voxel_space
+default: $(EXAMPLES)
 
 basic: examples/basic.c scg.h
 	$(CC) examples/basic.c -o basic $(CFLAGS) $(LDFLAGS) $(INCLUDES)
@@ -53,7 +65,7 @@ format:
 
 .PHONY: clean
 clean:
-	rm -f basic audio plasma image transform rotozoom tunnel starfield starfield_3d voxel_space
+	rm -f $(EXAMPLES)
 	rm -f **/*.o
 	rm -rf *.dSYM
 	rm -f gmon.out

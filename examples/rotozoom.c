@@ -75,7 +75,7 @@ int main(void) {
     }
 
     float32_t elapsed_time = 0.0f;
-    scg_pixel_t clear_color = SCG_COLOR_95_GREEN;
+    scg_pixel_t clear_color = SCG_COLOR_BLACK;
 
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {

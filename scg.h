@@ -120,6 +120,8 @@ extern void scg_image_draw_rect(scg_image_t *image, int x, int y, int w, int h,
                                 scg_pixel_t color);
 extern void scg_image_fill_rect(scg_image_t *image, int x, int y, int w, int h,
                                 scg_pixel_t color);
+extern void scg_image_draw_char(scg_image_t *image, char ch, int x, int y,
+                                scg_pixel_t color);
 extern void scg_image_draw_string(scg_image_t *image, const char *str, int x,
                                   int y, bool anchor_to_center,
                                   scg_pixel_t color);
@@ -687,11 +689,22 @@ void scg_image_fill_rect(scg_image_t *image, int x, int y, int w, int h,
     }
 }
 
-static void scg__draw_char(scg_image_t *image, const char *char_bitmap, int x,
-                           int y, scg_pixel_t color) {
+//
+// scg_image_draw_char implementation
+//
+
+void scg_image_draw_char(scg_image_t *image, char ch, int x, int y,
+                         scg_pixel_t color) {
+    int char_code = (int)ch;
+    if (char_code < 0 || char_code > 127) {
+        char_code = 63; // draw '?' for unknown char
+    }
+
+    const char *bitmap = scg__font8x8[char_code];
+
     for (int i = 0; i < SCG_FONT_SIZE; i++) {
         for (int j = 0; j < SCG_FONT_SIZE; j++) {
-            int set = char_bitmap[i] & 1 << j;
+            int set = bitmap[i] & 1 << j;
 
             if (set) {
                 scg_image_set_pixel(image, x + j, y + i, color);
@@ -721,13 +734,7 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
     }
 
     for (int i = 0; str[i] != '\0'; i++) {
-        int char_code = (int)str[i];
-        if (char_code < 0 || char_code > 127) {
-            char_code = 63; // draw '?' for unknown char
-        }
-        scg__draw_char(image, scg__font8x8[char_code], current_x, current_y,
-                       color);
-
+        scg_image_draw_char(image, str[i], current_x, current_y, color);
         current_x += SCG_FONT_SIZE + horizontal_spacing;
     }
 }
@@ -771,16 +778,6 @@ void scg_image_destroy(scg_image_t *image) {
     free(image->pixels);
 }
 
-static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
-    int result = display_mode.refresh_rate;
-
-    if (result == 0) {
-        return SCG_DEFAULT_REFRESH_RATE;
-    }
-
-    return result;
-}
-
 //
 // scg_init implementation
 //
@@ -799,6 +796,16 @@ scg_error_t scg_init(void) {
 
 void scg_quit(void) {
     SDL_Quit();
+}
+
+static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
+    int result = display_mode.refresh_rate;
+
+    if (result == 0) {
+        return SCG_DEFAULT_REFRESH_RATE;
+    }
+
+    return result;
 }
 
 //

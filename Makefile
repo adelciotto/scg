@@ -24,7 +24,8 @@ EXAMPLES := \
 	tunnel \
 	starfield \
 	starfield_3d \
-	voxel_space
+	voxel_space \
+	matrix
 
 .PHONY: default
 default: $(EXAMPLES)
@@ -58,6 +59,9 @@ starfield_3d: examples/starfield_3d.c scg.h
 
 voxel_space: examples/voxel_space.c scg.h
 	$(CC) examples/voxel_space.c -o voxel_space $(CFLAGS) $(LDFLAGS) $(INCLUDES)
+
+matrix: examples/matrix.c scg.h
+	$(CC) examples/matrix.c -o matrix $(CFLAGS) $(LDFLAGS) $(INCLUDES)
 
 .PHONY: format
 format:

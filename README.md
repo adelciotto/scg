@@ -50,6 +50,7 @@ Replace `{{example_name}}` with any of the following:
 * `starfield_3d`
 * `voxel_space`
 * `audio`
+* `matrix`
 
 By default all the examples are built with optimization flags. To build in debug mode, use the `DEBUG=1` flag.
 
@@ -80,10 +81,10 @@ Starfield | Starfield 3D | Voxel Space
 ![starfield](/previews/starfield.png) | ![starfield-3d](/previews/starfield_3d.png) | ![voxel-space](/previews/voxel_space.png)
 [Source](examples/starfield.c) | [Source](examples/starfield_3d.c) | [Source](examples/voxel_space.c)
 
-| Audio |
-| --- |
-| ![audio](/previews/audio.png) |
-| [Source](examples/audio.c) |
+| Audio | Matrix
+| --- | ---
+| ![audio](/previews/audio.png) | ![matrix](/previews/matrix.png)
+| [Source](examples/audio.c) | [Source](examples/matrix.c)
 
 ## Converting audio
 

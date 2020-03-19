@@ -9,11 +9,6 @@ else
 	CFLAGS += -O2 -DNDEBUG
 endif
 
-PROFILE ?= 0
-ifeq ($(PROFILE), 1)
-	CFLAGS += -pg
-endif
-
 EXAMPLES := \
 	basic \
 	audio \
@@ -25,7 +20,8 @@ EXAMPLES := \
 	starfield \
 	starfield_3d \
 	voxel_space \
-	matrix
+	matrix \
+	metablobs
 
 .PHONY: default
 default: $(EXAMPLES)

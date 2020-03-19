@@ -106,7 +106,7 @@ int main(void) {
     }
 
     scg_screen_t screen;
-    err = scg_screen_new(&screen, "SCG Example: Starfield", &back_buffer,
+    err = scg_screen_new(&screen, "SCG Example: Starfield 3D", &back_buffer,
                          window_scale, fullscreen);
     if (!err.none) {
         scg_log_error("Failed to create screen. Error: %s", err.message);

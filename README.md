@@ -51,6 +51,7 @@ Replace `{{example_name}}` with any of the following:
 * `voxel_space`
 * `audio`
 * `matrix`
+* `metablobs`
 
 By default all the examples are built with optimization flags. To build in debug mode, use the `DEBUG=1` flag.
 
@@ -81,10 +82,10 @@ Starfield | Starfield 3D | Voxel Space
 ![starfield](/previews/starfield.png) | ![starfield-3d](/previews/starfield_3d.png) | ![voxel-space](/previews/voxel_space.png)
 [Source](examples/starfield.c) | [Source](examples/starfield_3d.c) | [Source](examples/voxel_space.c)
 
-| Audio | Matrix
-| --- | ---
-| ![audio](/previews/audio.png) | ![matrix](/previews/matrix.png)
-| [Source](examples/audio.c) | [Source](examples/matrix.c)
+| Audio | Matrix | Metablobs
+| --- | --- | ---
+| ![audio](/previews/audio.png) | ![matrix](/previews/matrix.png) | ![metablobs](/previews/metablobs.png)
+| [Source](examples/audio.c) | [Source](examples/matrix.c) | [Source](examples/metablobs.c)
 
 ## Converting audio
 
@@ -102,5 +103,5 @@ ffmpeg -i assets/{example_sound}.wav -acodec pcm_s16le -ac 2 -ar 48000 assets/{e
 	- Original link: https://freesound.org/people/joshuaempyre/sounds/251461/.
 - Space texture used in the tunnel example is by [webtreats](http://www.everystockphoto.com/photographer.php?photographer_id=71737)
 	- Original link: http://www.everystockphoto.com/photo.php?imageId=9268254.
-- Tunnel and Rotozoom effects were implemented following the helpful descriptions given by [mrkite](https://github.com/mrkite) at https://seancode.com/demofx/.
+- Tunnel, Rotozoom and Metablobs effects were implemented following the helpful descriptions given by [mrkite](https://github.com/mrkite) at https://seancode.com/demofx/.
 - Voxel Space effect implemented with help from https://github.com/s-macke/VoxelSpace.

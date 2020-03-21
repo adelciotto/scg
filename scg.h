@@ -136,6 +136,8 @@ extern void scg_image_draw_wstring(scg_image_t *image, const wchar_t *str,
                                    scg_pixel_t color);
 extern void scg_image_draw_frame_metrics(scg_image_t *image,
                                          scg_frame_metrics_t frame_metrics);
+extern scg_error_t scg_image_save_to_bmp(scg_image_t *image,
+                                         const char *filepath);
 extern void scg_image_destroy(scg_image_t *image);
 
 extern scg_error_t scg_init(void);
@@ -273,6 +275,8 @@ struct scg_keyboard_t {
 #define SCG__FONT_HIRAGANA_CHAR_CODE_START 0x3040
 #define SCG__FONT_HIRAGANA_CHAR_CODE_END 0x309F
 
+#define SCG__IMAGE_PIXEL_FORMAT SDL_PIXELFORMAT_RGBA32
+
 extern const char scg__font8x8[SCG__FONT_NUM_CHARS][SCG_FONT_SIZE];
 extern const char scg__font8x8_hiragana[SCG__FONT_HIRAGANA_NUM_CHARS]
                                        [SCG_FONT_SIZE];
@@ -381,7 +385,7 @@ scg_error_t scg_image_new(scg_image_t *image, int width, int height) {
         return scg_error_new("Failed to allocate memory for image");
     }
 
-    SDL_PixelFormat *pixel_format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
+    SDL_PixelFormat *pixel_format = SDL_AllocFormat(SCG__IMAGE_PIXEL_FORMAT);
     if (pixel_format == NULL) {
         const char *error_msg =
             scg__sprintf("Failed to allocate pixel format. %s", SDL_GetError());
@@ -411,7 +415,7 @@ scg_error_t scg_image_new_from_bmp(scg_image_t *image, const char *filepath) {
     }
 
     // Convert the surface to RGBA32 pixel format.
-    SDL_PixelFormat *pixel_format = SDL_AllocFormat(SDL_PIXELFORMAT_RGBA32);
+    SDL_PixelFormat *pixel_format = SDL_AllocFormat(SCG__IMAGE_PIXEL_FORMAT);
     if (pixel_format == NULL) {
         const char *error_msg = scg__sprintf(
             "Failed to allocate pixel format for %s image file. %s", filepath,
@@ -839,6 +843,34 @@ void scg_image_draw_frame_metrics(scg_image_t *image,
 }
 
 //
+// scg_image_save_to_bmp implementation
+//
+
+scg_error_t scg_image_save_to_bmp(scg_image_t *image, const char *filepath) {
+    SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormatFrom(
+        (void *)image->pixels, image->width, image->height, 32, image->pitch,
+        SCG__IMAGE_PIXEL_FORMAT);
+    if (surface == NULL) {
+        const char *error_msg =
+            scg__sprintf("Failed to create SDL surface from image. Error: %s",
+                         SDL_GetError());
+        return scg_error_new(error_msg);
+    }
+
+    if (SDL_SaveBMP(surface, filepath) != 0) {
+        SDL_FreeSurface(surface);
+
+        const char *error_msg = scg__sprintf(
+            "Failed to save image to %s. Error: %s", filepath, SDL_GetError());
+        return scg_error_new(error_msg);
+    }
+
+    SDL_FreeSurface(surface);
+
+    return scg_error_none();
+}
+
+//
 // scg_image_destroy implementation
 //
 
@@ -915,7 +947,7 @@ scg_error_t scg_screen_new(scg_screen_t *screen, const char *title,
     SDL_RenderSetLogicalSize(sdl_renderer, w, h);
 
     SDL_Texture *sdl_texture =
-        SDL_CreateTexture(sdl_renderer, SDL_PIXELFORMAT_RGBA32,
+        SDL_CreateTexture(sdl_renderer, SCG__IMAGE_PIXEL_FORMAT,
                           SDL_TEXTUREACCESS_STREAMING, w, h);
     if (sdl_texture == NULL) {
         return scg_error_new(SDL_GetError());

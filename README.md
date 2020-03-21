@@ -69,22 +69,22 @@ make {{example_name}} DEBUG=1
 
 Basic | Plasma | Image
 --- | --- | ---
-![basic](/previews/basic.png) | ![plasma](/previews/plasma.png) | ![image](/previews/image.png)
+![basic](/screenshots/basic.bmp) | ![plasma](/screenshots/plasma.bmp) | ![image](/screenshots/image.bmp)
 [Source](/examples/basic.c) | [Source](/examples/plasma.c) | [Source](examples/image.c)
 
 Transform | Rotozoom | Tunnel
 --- | --- | ---
-![transform](/previews/transform.png) | ![rotozoom](/previews/rotozoom.png) | ![tunnel](/previews/tunnel.png)
+![transform](/screenshots/transform.bmp) | ![rotozoom](/screenshots/rotozoom.bmp) | ![tunnel](/screenshots/tunnel.bmp)
 [Source](examples/transform.c) | [Source](examples/rotozoom.c) | [Source](examples/tunnel.c)
 
 Starfield | Starfield 3D | Voxel Space
 --- | --- | ---
-![starfield](/previews/starfield.png) | ![starfield-3d](/previews/starfield_3d.png) | ![voxel-space](/previews/voxel_space.png)
+![starfield](/screenshots/starfield.bmp) | ![starfield-3d](/screenshots/starfield_3d.bmp) | ![voxel-space](/screenshots/voxel_space.bmp)
 [Source](examples/starfield.c) | [Source](examples/starfield_3d.c) | [Source](examples/voxel_space.c)
 
 | Audio | Matrix | Metablobs
 | --- | --- | ---
-| ![audio](/previews/audio.png) | ![matrix](/previews/matrix.png) | ![metablobs](/previews/metablobs.png)
+| ![audio](/screenshots/audio.bmp) | ![matrix](/screenshots/matrix.bmp) | ![metablobs](/screenshots/metablobs.bmp)
 | [Source](examples/audio.c) | [Source](examples/matrix.c) | [Source](examples/metablobs.c)
 
 ## Converting audio

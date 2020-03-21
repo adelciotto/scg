@@ -2,8 +2,11 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-const int gscreen_w = 640;
-const int gscreen_h = 480;
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
+#define WINDOW_SCALE 1
+#define FULLSCREEN false
+#define SCREENSHOT_FILEPATH "screenshots/starfield.bmp"
 
 typedef struct star_t {
     float32_t x;
@@ -33,8 +36,8 @@ static void init_starfield(starfield_t *starfield, int num_stars,
         star_t *current = &starfield->stars[i];
         bool is_super_fast = i % num_stars == 1;
 
-        current->x = (float32_t)(rand() % gscreen_w);
-        current->y = (float32_t)(rand() % gscreen_h);
+        current->x = (float32_t)(rand() % SCREEN_WIDTH);
+        current->y = (float32_t)(rand() % SCREEN_HEIGHT);
         current->layer_index = (is_super_fast) ? 10 : (i % num_layers) + 1;
         current->layer_modifier =
             (float32_t)current->layer_index / (float32_t)num_layers;
@@ -50,8 +53,8 @@ static void update_starfield(starfield_t starfield, float32_t animation_time) {
         current->y +=
             (starfield.scroll_speed * speed_modifier) * animation_time;
 
-        if (current->y > gscreen_h + starfield.star_size) {
-            current->x = (float32_t)(rand() % gscreen_w);
+        if (current->y > SCREEN_HEIGHT + starfield.star_size) {
+            current->x = (float32_t)(rand() % SCREEN_WIDTH);
             current->y = -(float32_t)starfield.star_size * 4.0f;
         }
     }
@@ -77,9 +80,6 @@ static void draw_starfield(scg_image_t *back_buffer, starfield_t starfield) {
 }
 
 int main(void) {
-    const int window_scale = 1;
-    const bool fullscreen = false;
-
     scg_error_t err = scg_init();
     if (!err.none) {
         scg_log_error("Failed to initialise scg. Error: %s", err.message);
@@ -87,7 +87,7 @@ int main(void) {
     }
 
     scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, gscreen_w, gscreen_h);
+    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
     if (!err.none) {
         scg_log_error("Failed to create back buffer. Error: %s", err.message);
         return -1;
@@ -95,7 +95,7 @@ int main(void) {
 
     scg_screen_t screen;
     err = scg_screen_new(&screen, "SCG Example: Starfield", &back_buffer,
-                         window_scale, fullscreen);
+                         WINDOW_SCALE, FULLSCREEN);
     if (!err.none) {
         scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
@@ -119,6 +119,16 @@ int main(void) {
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
+        }
+        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
+            scg_error_t err =
+                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
+            if (!err.none) {
+                scg_log_warn("Failed to save screenshot to %s. Error: %s",
+                             SCREENSHOT_FILEPATH, err.message);
+            }
+
+            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
         }
 
         update_starfield(starfield, screen.target_frame_time_secs);

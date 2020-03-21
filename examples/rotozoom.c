@@ -1,8 +1,14 @@
+// Rotozoom effect implemented with help from the following references:
+// - https://seancode.com/demofx/
+
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-// Rotozoom effect implemented with help from the following references:
-// - https://seancode.com/demofx/
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
+#define WINDOW_SCALE 1
+#define FULLSCREEN false
+#define SCREENSHOT_FILEPATH "screenshots/rotozoom.bmp"
 
 static void draw_image_with_rotozoom(scg_image_t *back_buffer, scg_image_t *src,
                                      float32_t angle, float32_t scale) {
@@ -19,7 +25,7 @@ static void draw_image_with_rotozoom(scg_image_t *back_buffer, scg_image_t *src,
             float32_t tx = (x * c - y * s) * scale;
             float32_t ty = (x * s + y * c) * scale;
 
-            // no need for mod because image width is 256px
+            // No need for mod because image width is 256px.
             int src_x = (int)tx & 255;
 
             int src_y = (int)ty % src_h;
@@ -37,11 +43,6 @@ static void draw_image_with_rotozoom(scg_image_t *back_buffer, scg_image_t *src,
 }
 
 int main(void) {
-    const int width = 640;
-    const int height = 480;
-    const int window_scale = 1;
-    const bool fullscreen = false;
-
     scg_error_t err = scg_init();
     if (!err.none) {
         scg_log_error("Failed to initialise scg. Error: %s", err.message);
@@ -49,7 +50,7 @@ int main(void) {
     }
 
     scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, width, height);
+    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
     if (!err.none) {
         scg_log_error("Failed to create back buffer. Error: %s", err.message);
         return -1;
@@ -57,7 +58,7 @@ int main(void) {
 
     scg_screen_t screen;
     err = scg_screen_new(&screen, "SCG Example: Rotozoom", &back_buffer,
-                         window_scale, fullscreen);
+                         WINDOW_SCALE, FULLSCREEN);
     if (!err.none) {
         scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
@@ -80,6 +81,16 @@ int main(void) {
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
+        }
+        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
+            scg_error_t err =
+                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
+            if (!err.none) {
+                scg_log_warn("Failed to save screenshot to %s. Error: %s",
+                             SCREENSHOT_FILEPATH, err.message);
+            }
+
+            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
         }
 
         elapsed_time += 1.0f * screen.target_frame_time_secs;

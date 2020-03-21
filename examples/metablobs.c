@@ -6,6 +6,9 @@
 
 #define SCREEN_WIDTH 320
 #define SCREEN_HEIGHT 240
+#define WINDOW_SCALE 2
+#define FULLSCREEN false
+#define SCREENSHOT_FILEPATH "screenshots/metablobs.bmp"
 
 #define NUM_BLOBS 3
 #define METABLOBS_CONST_A 300.0f
@@ -115,8 +118,8 @@ int main(void) {
     }
 
     scg_screen_t screen;
-    err = scg_screen_new(&screen, "SCG Example: Metablobs", &back_buffer, 2,
-                         false);
+    err = scg_screen_new(&screen, "SCG Example: Metablobs", &back_buffer,
+                         WINDOW_SCALE, FULLSCREEN);
     if (!err.none) {
         scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
@@ -136,6 +139,16 @@ int main(void) {
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
+        }
+        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
+            scg_error_t err =
+                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
+            if (!err.none) {
+                scg_log_warn("Failed to save screenshot to %s. Error: %s",
+                             SCREENSHOT_FILEPATH, err.message);
+            }
+
+            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
         }
 
         uint64_t now = scg_get_performance_counter();

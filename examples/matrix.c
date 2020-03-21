@@ -4,6 +4,9 @@
 
 #define SCREEN_WIDTH 640
 #define SCREEN_HEIGHT 480
+#define WINDOW_SCALE 1
+#define FULLSCREEN false
+#define SCREENSHOT_FILEPATH "screenshots/matrix.bmp"
 
 #define CODE_STRING_CHAR_SIZE SCG_FONT_SIZE
 #define CODE_STRING_MAX_CHARS 90
@@ -73,13 +76,11 @@ static void update_matrix(matrix_t *matrix, float32_t delta_time) {
 }
 
 static inline scg_pixel_t shade_pixel(scg_pixel_t color, float32_t shade) {
-    scg_pixel_t out;
+    uint8_t r = (uint8_t)((float32_t)color.data.r * shade);
+    uint8_t g = (uint8_t)((float32_t)color.data.g * shade);
+    uint8_t b = (uint8_t)((float32_t)color.data.b * shade);
 
-    out.data.r = (uint8_t)((float32_t)color.data.r * shade);
-    out.data.g = (uint8_t)((float32_t)color.data.g * shade);
-    out.data.b = (uint8_t)((float32_t)color.data.b * shade);
-
-    return out;
+    return scg_pixel_new_rgb(r, g, b);
 }
 
 static void draw_matrix(scg_image_t *back_buffer, matrix_t *matrix) {
@@ -131,8 +132,8 @@ int main(void) {
     }
 
     scg_screen_t screen;
-    err =
-        scg_screen_new(&screen, "SCG Example: Matrix", &back_buffer, 1, false);
+    err = scg_screen_new(&screen, "SCG Example: Matrix", &back_buffer,
+                         WINDOW_SCALE, FULLSCREEN);
     if (!err.none) {
         scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
@@ -154,6 +155,16 @@ int main(void) {
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
+        }
+        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
+            scg_error_t err =
+                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
+            if (!err.none) {
+                scg_log_warn("Failed to save screenshot to %s. Error: %s",
+                             SCREENSHOT_FILEPATH, err.message);
+            }
+
+            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
         }
 
         uint64_t now = scg_get_performance_counter();

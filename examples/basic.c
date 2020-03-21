@@ -1,12 +1,15 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-static void draw_frame(scg_image_t *back_buffer) {
-    int w = back_buffer->width;
-    int h = back_buffer->height;
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 480
+#define WINDOW_SCALE 1
+#define FULLSCREEN false
+#define SCREENSHOT_FILEPATH "screenshots/basic.bmp"
 
-    for (int y = 0; y < h; y++) {
-        for (int x = 0; x < w; x++) {
+static void draw_frame(scg_image_t *back_buffer) {
+    for (int y = 0; y < SCREEN_HEIGHT; y++) {
+        for (int x = 0; x < SCREEN_WIDTH; x++) {
             uint8_t r = scg_min_int(x, 255);
             uint8_t g = scg_min_int(y, 255);
 
@@ -16,15 +19,11 @@ static void draw_frame(scg_image_t *back_buffer) {
     }
 
     scg_pixel_t color = SCG_COLOR_WHITE;
-    scg_image_draw_string(back_buffer, "Hello, World!", w / 2, h / 2, 1, color);
+    scg_image_draw_string(back_buffer, "Hello, World!", SCREEN_WIDTH / 2,
+                          SCREEN_HEIGHT / 2, 1, color);
 }
 
 int main(void) {
-    const int width = 640;
-    const int height = 480;
-    const int window_scale = 1;
-    const bool fullscreen = false;
-
     scg_error_t err = scg_init();
     if (!err.none) {
         scg_log_error("Failed to initialise scg. Error: %s", err.message);
@@ -32,7 +31,7 @@ int main(void) {
     }
 
     scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, width, height);
+    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
     if (!err.none) {
         scg_log_error("Failed to create back buffer. Error: %s", err.message);
         return -1;
@@ -40,7 +39,7 @@ int main(void) {
 
     scg_screen_t screen;
     err = scg_screen_new(&screen, "SCG Example: Basic", &back_buffer,
-                         window_scale, fullscreen);
+                         WINDOW_SCALE, FULLSCREEN);
     if (!err.none) {
         scg_log_error("Failed to create screen. Error: %s", err.message);
         return -1;
@@ -55,6 +54,16 @@ int main(void) {
     while (scg_screen_is_running(&screen)) {
         if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
             scg_screen_close(&screen);
+        }
+        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
+            scg_error_t err =
+                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
+            if (!err.none) {
+                scg_log_warn("Failed to save screenshot to %s. Error: %s",
+                             SCREENSHOT_FILEPATH, err.message);
+            }
+
+            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
         }
 
         scg_image_clear(&back_buffer, clear_color);

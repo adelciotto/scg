@@ -757,10 +757,9 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
                            bool anchor_to_center, scg_pixel_t color) {
     int current_x = x;
     int current_y = y;
-    int horizontal_spacing = 1;
 
     if (anchor_to_center) {
-        int width = strlen(str) * (SCG_FONT_SIZE + horizontal_spacing);
+        int width = strlen(str) * SCG_FONT_SIZE;
         current_x = x - width / 2;
         current_y -= SCG_FONT_SIZE / 2;
     }
@@ -768,10 +767,9 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
     for (int i = 0; str[i] != '\0'; i++) {
         if (str[i] != SCG__FONT_CHAR_CODE_SPACE) {
             scg_image_draw_char(image, str[i], current_x, current_y, color);
-            current_x += SCG_FONT_SIZE + horizontal_spacing;
-        } else {
-            current_x += SCG_FONT_SIZE;
         }
+
+        current_x += SCG_FONT_SIZE;
     }
 }
 
@@ -812,10 +810,9 @@ void scg_image_draw_wstring(scg_image_t *image, const wchar_t *str, int x,
                             int y, bool anchor_to_center, scg_pixel_t color) {
     int current_x = x;
     int current_y = y;
-    int horizontal_spacing = 1;
 
     if (anchor_to_center) {
-        int width = wcslen(str) * (SCG_FONT_SIZE + horizontal_spacing);
+        int width = wcslen(str) * SCG_FONT_SIZE;
         current_x = x - width / 2;
         current_y -= SCG_FONT_SIZE / 2;
     }
@@ -823,10 +820,9 @@ void scg_image_draw_wstring(scg_image_t *image, const wchar_t *str, int x,
     for (int i = 0; str[i] != '\0'; i++) {
         if (str[i] != SCG__FONT_CHAR_CODE_SPACE) {
             scg_image_draw_wchar(image, str[i], current_x, current_y, color);
-            current_x += SCG_FONT_SIZE + horizontal_spacing;
-        } else {
-            current_x += SCG_FONT_SIZE;
         }
+
+        current_x += SCG_FONT_SIZE;
     }
 }
 

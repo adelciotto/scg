@@ -6,9 +6,23 @@
 // as published by Sam Hocevar. See the LICENSE file for more details.
 //
 // ABOUT:
+// My personal single header file library for quick and simple
+// cross-platform graphics applications.
 //
-// My personal WIP single header file library for quick and simple
-// cross-platform interactive applications.
+// Version: 0.0.1 (WIP)
+//
+// Do this:
+// #define SCG_IMPLEMENTATION
+// before you include this file in *one* C or C++ file to create the implementation.
+//
+// // i.e. it should look like this:
+// #include ...
+// #include ...
+// #include ...
+// #define SCG_IMPLEMENTATION
+// #include "scg.h"
+//
+// View any of the examples for demonstration of usage.
 
 #ifndef INCLUDE_SCG_H
 #define INCLUDE_SCG_H
@@ -253,7 +267,7 @@ struct scg_keyboard_t {
 }
 #endif
 
-#endif
+#endif // INCLUDE_SCG_H
 
 //////////////////////////////////////////////////////////////////////////////
 //

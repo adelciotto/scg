@@ -270,6 +270,7 @@ struct scg_keyboard_t {
 #define SCG__FONT_NUM_CHARS 128
 #define SCG__FONT_CHAR_CODE_START 0
 #define SCG__FONT_CHAR_CODE_END 127
+#define SCG__FONT_CHAR_CODE_SPACE 32
 #define SCG__FONT_CHAR_CODE_QUESTION_MARK 63
 #define SCG__FONT_HIRAGANA_NUM_CHARS 96
 #define SCG__FONT_HIRAGANA_CHAR_CODE_START 0x3040
@@ -387,6 +388,8 @@ scg_error_t scg_image_new(scg_image_t *image, int width, int height) {
 
     SDL_PixelFormat *pixel_format = SDL_AllocFormat(SCG__IMAGE_PIXEL_FORMAT);
     if (pixel_format == NULL) {
+        free(pixels);
+
         const char *error_msg =
             scg__sprintf("Failed to allocate pixel format. %s", SDL_GetError());
         return scg_error_new(error_msg);
@@ -417,6 +420,8 @@ scg_error_t scg_image_new_from_bmp(scg_image_t *image, const char *filepath) {
     // Convert the surface to RGBA32 pixel format.
     SDL_PixelFormat *pixel_format = SDL_AllocFormat(SCG__IMAGE_PIXEL_FORMAT);
     if (pixel_format == NULL) {
+        SDL_FreeSurface(surface);
+
         const char *error_msg = scg__sprintf(
             "Failed to allocate pixel format for %s image file. %s", filepath,
             SDL_GetError());
@@ -425,6 +430,9 @@ scg_error_t scg_image_new_from_bmp(scg_image_t *image, const char *filepath) {
     SDL_Surface *converted_surface =
         SDL_ConvertSurface(surface, pixel_format, 0);
     if (converted_surface == NULL) {
+        SDL_FreeFormat(pixel_format);
+        SDL_FreeSurface(surface);
+
         const char *error_msg =
             scg__sprintf("Failed to convert surface for %s image file. %s",
                          filepath, SDL_GetError());
@@ -442,6 +450,8 @@ scg_error_t scg_image_new_from_bmp(scg_image_t *image, const char *filepath) {
     // Allocate new pixel buffer and copy over the converted surface pixel data.
     uint32_t *pixels = malloc(surface_pitch * surface_h);
     if (pixels == NULL) {
+        SDL_FreeFormat(pixel_format);
+
         const char *error_msg = scg__sprintf(
             "Failed to allocate memory for %s image file", filepath);
         return scg_error_new(error_msg);
@@ -756,8 +766,12 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
     }
 
     for (int i = 0; str[i] != '\0'; i++) {
-        scg_image_draw_char(image, str[i], current_x, current_y, color);
-        current_x += SCG_FONT_SIZE + horizontal_spacing;
+        if (str[i] != SCG__FONT_CHAR_CODE_SPACE) {
+            scg_image_draw_char(image, str[i], current_x, current_y, color);
+            current_x += SCG_FONT_SIZE + horizontal_spacing;
+        } else {
+            current_x += SCG_FONT_SIZE;
+        }
     }
 }
 
@@ -807,8 +821,12 @@ void scg_image_draw_wstring(scg_image_t *image, const wchar_t *str, int x,
     }
 
     for (int i = 0; str[i] != '\0'; i++) {
-        scg_image_draw_char(image, str[i], current_x, current_y, color);
-        current_x += SCG_FONT_SIZE + horizontal_spacing;
+        if (str[i] != SCG__FONT_CHAR_CODE_SPACE) {
+            scg_image_draw_wchar(image, str[i], current_x, current_y, color);
+            current_x += SCG_FONT_SIZE + horizontal_spacing;
+        } else {
+            current_x += SCG_FONT_SIZE;
+        }
     }
 }
 
@@ -941,6 +959,8 @@ scg_error_t scg_screen_new(scg_screen_t *screen, const char *title,
     SDL_Renderer *sdl_renderer = SDL_CreateRenderer(
         sdl_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if (sdl_renderer == NULL) {
+        SDL_DestroyWindow(sdl_window);
+
         return scg_error_new(SDL_GetError());
     }
 
@@ -950,6 +970,9 @@ scg_error_t scg_screen_new(scg_screen_t *screen, const char *title,
         SDL_CreateTexture(sdl_renderer, SCG__IMAGE_PIXEL_FORMAT,
                           SDL_TEXTUREACCESS_STREAMING, w, h);
     if (sdl_texture == NULL) {
+        SDL_DestroyRenderer(sdl_renderer);
+        SDL_DestroyWindow(sdl_window);
+
         return scg_error_new(SDL_GetError());
     }
 
@@ -1096,6 +1119,8 @@ scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
     }
 
     if (obtained.format != desired.format) {
+        SDL_CloseAudioDevice(device_id);
+
         return scg_error_new("Audio device does not support format S16LSB");
     }
 
@@ -1105,6 +1130,8 @@ scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
 
     uint8_t *buffer = calloc(latency_sample_count, bytes_per_sample);
     if (buffer == NULL) {
+        SDL_CloseAudioDevice(device_id);
+
         const char *error_msg =
             scg__sprintf("Failed to allocate memory for sound buffer. bytes=%d",
                          sound_device->latency_sample_count * bytes_per_sample);

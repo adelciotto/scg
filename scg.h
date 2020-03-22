@@ -78,9 +78,9 @@ typedef union scg_pixel_t {
 #define SCG_COLOR_GREEN scg_pixel_new_rgb(0, 255, 0)
 #define SCG_COLOR_BLUE scg_pixel_new_rgb(0, 0, 255)
 #define SCG_COLOR_YELLOW scg_pixel_new_rgb(255, 255, 0)
-#define SCG_COLOR_95_GREEN scg_pixel_new_rgb(0, 128, 128);
-#define SCG_COLOR_ICE_BLUE scg_pixel_new_rgb(153, 255, 255);
-#define SCG_COLOR_SKY_BLUE scg_pixel_new_rgb(135, 206, 235);
+#define SCG_COLOR_95_GREEN scg_pixel_new_rgb(0, 128, 128)
+#define SCG_COLOR_ICE_BLUE scg_pixel_new_rgb(153, 255, 255)
+#define SCG_COLOR_SKY_BLUE scg_pixel_new_rgb(135, 206, 235)
 
 typedef enum scg_blend_mode_t {
     SCG_BLEND_MODE_NONE,

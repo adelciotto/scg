@@ -7,12 +7,6 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
-#define WINDOW_SCALE 1
-#define FULLSCREEN false
-#define SCREENSHOT_FILEPATH "screenshots/voxel_space.bmp"
-
 typedef struct camera_t {
     float32_t x;
     float32_t y;
@@ -25,42 +19,39 @@ typedef struct camera_t {
 typedef struct terrain_t {
     int map_w;
     int map_h;
-    scg_image_t color_map;
-    scg_image_t height_map;
+    scg_image_t *color_map;
+    scg_image_t *height_map;
 } terrain_t;
 
-static scg_error_t init(terrain_t *terrain, camera_t *camera) {
-    scg_image_t color_map;
-    scg_error_t err =
-        scg_image_new_from_bmp(&color_map, "assets/color_map.bmp");
-    if (!err.none) {
-        return err;
+static bool init(terrain_t *terrain, camera_t *camera) {
+    scg_image_t *color_map = scg_image_new_from_bmp("assets/color_map.bmp");
+    if (color_map == NULL) {
+        return false;
     }
 
-    scg_image_t height_map;
-    err = scg_image_new_from_bmp(&height_map, "assets/height_map.bmp");
-    if (!err.none) {
-        return err;
+    scg_image_t *height_map = scg_image_new_from_bmp("assets/height_map.bmp");
+    if (height_map == NULL) {
+        return false;
     }
 
-    if (color_map.width != height_map.width ||
-        color_map.height != height_map.height) {
-        return scg_error_new(
-            "color map dimensions must match height map dimenstions");
+    if (color_map->width != height_map->width ||
+        color_map->height != height_map->height) {
+        scg_log_error("color map dimensions must match height map dimenstions");
+        return false;
     }
 
-    int map_w = height_map.width;
-    int map_h = height_map.height;
+    int map_w = height_map->width;
+    int map_h = height_map->height;
 
     // Convert the heightmap to greyscale values between 0..255
     for (int y = 0; y < map_h; y++) {
         for (int x = 0; x < map_w; x++) {
             int i = scg_pixel_index_from_xy(x, y, map_w);
 
-            scg_pixel_t color = scg_pixel_new_uint32(height_map.pixels[i]);
+            scg_pixel_t color = scg_pixel_new_uint32(height_map->pixels[i]);
             color.packed = color.data.r;
 
-            height_map.pixels[i] = color.packed;
+            height_map->pixels[i] = color.packed;
         }
     }
 
@@ -76,7 +67,7 @@ static scg_error_t init(terrain_t *terrain, camera_t *camera) {
     camera->horizon = 120.0f;
     camera->max_distance = 400.0f;
 
-    return scg_error_none();
+    return true;
 }
 
 // Reference: https://github.com/hughsk/glsl-fog
@@ -99,35 +90,37 @@ static inline scg_pixel_t shade_pixel(scg_pixel_t src, float32_t t) {
     return scg_pixel_new_rgb((uint8_t)r, (uint8_t)g, (uint8_t)b);
 }
 
-static inline void draw_vertical_line(scg_image_t *back_buffer, int x0, int y0,
+static inline void draw_vertical_line(scg_image_t *draw_target, int x0, int y0,
                                       int y1, scg_pixel_t color) {
     if (y0 < 0)
         y0 = 0;
     if (y0 > y1)
         return;
 
-    int screen_w = back_buffer->width;
+    int w = draw_target->width;
     uint32_t pixel = color.packed;
 
-    int i = scg_pixel_index_from_xy(x0, y0, screen_w);
+    int i = scg_pixel_index_from_xy(x0, y0, w);
     for (int y = y0; y < y1; y++) {
-        back_buffer->pixels[i] = pixel;
-        i += screen_w;
+        draw_target->pixels[i] = pixel;
+        i += w;
     }
 }
 
-static void draw(scg_image_t *back_buffer, terrain_t terrain, camera_t camera) {
-    int screen_w = back_buffer->width;
-    int screen_h = back_buffer->height;
+static void draw(scg_image_t *draw_target, terrain_t terrain, camera_t camera) {
+    scg_image_clear(draw_target, SCG_COLOR_WHITE);
+
+    int w = draw_target->width;
+    int h = draw_target->height;
     int map_w_period = terrain.map_w - 1;
     int map_h_period = terrain.map_h - 1;
 
     float32_t s = sinf(camera.angle);
     float32_t c = cosf(camera.angle);
 
-    float32_t ybuffer[screen_w];
-    for (int x = 0; x < screen_w; x++) {
-        ybuffer[x] = screen_h;
+    float32_t ybuffer[w];
+    for (int x = 0; x < w; x++) {
+        ybuffer[x] = h;
     }
 
     float32_t dt = 1.0f;
@@ -139,29 +132,29 @@ static void draw(scg_image_t *back_buffer, terrain_t terrain, camera_t camera) {
         float32_t pright_x = c * z - s * z;
         float32_t pright_y = -s * z - c * z;
 
-        float32_t dx = (pright_x - pleft_x) / (float32_t)screen_w;
-        float32_t dy = (pright_y - pleft_y) / (float32_t)screen_w;
+        float32_t dx = (pright_x - pleft_x) / (float32_t)w;
+        float32_t dy = (pright_y - pleft_y) / (float32_t)w;
         pleft_x += camera.x;
         pleft_y += camera.y;
         float32_t invz = 1.0f / z * 240.0f;
 
         float32_t fog = fog_factor(z * inv_max_distance, 2.2f);
 
-        for (int x = 0; x < screen_w; x++) {
+        for (int x = 0; x < w; x++) {
             int i = (((int)pleft_y & map_w_period) << 10) +
                     ((int)pleft_x & map_h_period);
 
             scg_pixel_t color_map_pixel =
-                scg_pixel_new_uint32(terrain.color_map.pixels[i]);
+                scg_pixel_new_uint32(terrain.color_map->pixels[i]);
             scg_pixel_t height_map_pixel =
-                scg_pixel_new_uint32(terrain.height_map.pixels[i]);
+                scg_pixel_new_uint32(terrain.height_map->pixels[i]);
 
             color_map_pixel = shade_pixel(color_map_pixel, fog);
 
             float32_t height_on_screen =
                 (camera.height - height_map_pixel.packed) * invz +
                 camera.horizon;
-            draw_vertical_line(back_buffer, x, height_on_screen, ybuffer[x],
+            draw_vertical_line(draw_target, x, height_on_screen, ybuffer[x],
                                color_map_pixel);
 
             if (height_on_screen < ybuffer[x]) {
@@ -177,80 +170,42 @@ static void draw(scg_image_t *back_buffer, terrain_t terrain, camera_t camera) {
 }
 
 int main(void) {
-    scg_error_t err = scg_init();
-    if (!err.none) {
-        scg_log_error("Failed to initialise scg. Error: %s", err.message);
-        return -1;
-    }
+    scg_config_t config = scg_config_new_default();
+    config.video.title = "SCG Example: Voxel Space";
 
-    scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
-    if (!err.none) {
-        scg_log_error("Failed to create back buffer. Error: %s", err.message);
-        return -1;
-    }
-
-    scg_screen_t screen;
-    err = scg_screen_new(&screen, "SCG Example: Voxel Space", &back_buffer,
-                         WINDOW_SCALE, FULLSCREEN);
-    if (!err.none) {
-        scg_log_error("Failed to create screen. Error: %s", err.message);
-        return -1;
-    }
-    scg_screen_log_info(&screen);
-
-    scg_keyboard_t keyboard;
-    scg_keyboard_new(&keyboard);
+    scg_app_t app;
+    scg_app_init(&app, config);
 
     terrain_t terrain;
     camera_t camera;
-    err = init(&terrain, &camera);
-    if (!err.none) {
-        scg_log_error("Failed to initialise terrain. Error: %s", err.message);
+    bool success = init(&terrain, &camera);
+    if (!success) {
         return -1;
     }
 
-    scg_pixel_t clear_color = SCG_COLOR_WHITE;
-    uint64_t delta_time_counter = scg_get_performance_counter();
+    while (app.running) {
+        scg_app_begin_frame(&app);
 
-    while (scg_screen_is_running(&screen)) {
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
-            scg_screen_close(&screen);
-        }
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
-            scg_error_t err =
-                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
-            if (!err.none) {
-                scg_log_warn("Failed to save screenshot to %s. Error: %s",
-                             SCREENSHOT_FILEPATH, err.message);
-            }
+        float32_t delta_time = app.delta_time;
 
-            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
-        }
-
-        uint64_t now = scg_get_performance_counter();
-        float32_t delta_time =
-            scg_get_elapsed_time_secs(now, delta_time_counter);
-        delta_time_counter = now;
-
-        if (scg_keyboard_is_key_down(&keyboard, SCG_KEY_UP)) {
+        if (scg_keyboard_is_key_down(app.keyboard, SCG_KEY_UP)) {
             camera.x += -120.0f * sinf(camera.angle) * delta_time;
             camera.y += -120.0f * cosf(camera.angle) * delta_time;
         }
-        if (scg_keyboard_is_key_down(&keyboard, SCG_KEY_DOWN)) {
+        if (scg_keyboard_is_key_down(app.keyboard, SCG_KEY_DOWN)) {
             camera.x += 120.0f * sinf(camera.angle) * delta_time;
             camera.y += 120.0f * cosf(camera.angle) * delta_time;
         }
-        if (scg_keyboard_is_key_down(&keyboard, SCG_KEY_LEFT)) {
+        if (scg_keyboard_is_key_down(app.keyboard, SCG_KEY_LEFT)) {
             camera.angle += 1.0f * delta_time;
         }
-        if (scg_keyboard_is_key_down(&keyboard, SCG_KEY_RIGHT)) {
+        if (scg_keyboard_is_key_down(app.keyboard, SCG_KEY_RIGHT)) {
             camera.angle += -1.0f * delta_time;
         }
-        if (scg_keyboard_is_key_down(&keyboard, SCG_KEY_X)) {
+        if (scg_keyboard_is_key_down(app.keyboard, SCG_KEY_X)) {
             camera.height += -120.0f * delta_time;
         }
-        if (scg_keyboard_is_key_down(&keyboard, SCG_KEY_Z)) {
+        if (scg_keyboard_is_key_down(app.keyboard, SCG_KEY_Z)) {
             camera.height += 120.0f * delta_time;
         }
 
@@ -259,27 +214,21 @@ int main(void) {
         int map_offset = (((int)camera.y & map_w_period) << 10) +
                          ((int)camera.x & map_h_period);
         int map_height =
-            scg_pixel_new_uint32(terrain.height_map.pixels[map_offset]).packed +
+            scg_pixel_new_uint32(terrain.height_map->pixels[map_offset])
+                .packed +
             10;
         if (map_height > camera.height) {
             camera.height = map_height;
         }
 
-        scg_image_clear(&back_buffer, clear_color);
+        draw(app.draw_target, terrain, camera);
 
-        draw(&back_buffer, terrain, camera);
-
-        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
-
-        scg_keyboard_update(&keyboard);
-        scg_screen_present(&screen);
+        scg_app_end_frame(&app);
     }
 
-    scg_image_destroy(&terrain.height_map);
-    scg_image_destroy(&terrain.color_map);
-    scg_screen_destroy(&screen);
-    scg_image_destroy(&back_buffer);
-    scg_quit();
+    scg_image_free(terrain.height_map);
+    scg_image_free(terrain.color_map);
+    scg_app_shutdown(&app);
 
     return 0;
 }

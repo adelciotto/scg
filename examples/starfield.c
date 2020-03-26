@@ -2,11 +2,9 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
-#define WINDOW_SCALE 1
-#define FULLSCREEN false
-#define SCREENSHOT_FILEPATH "screenshots/starfield.bmp"
+#define STARFIELD_NUM_STARS 1000
+#define STARFIELD_SCROLL_SPEED 90.0f
+#define STARFIELD_NUM_LAYERS 10
 
 typedef struct star_t {
     float32_t x;
@@ -24,8 +22,11 @@ typedef struct starfield_t {
     float32_t scroll_speed;
 } starfield_t;
 
-static void init_starfield(starfield_t *starfield, int num_stars,
-                           int num_layers, float32_t scroll_speed) {
+static void init(starfield_t *starfield, scg_app_t *app, int num_stars,
+                 int num_layers, float32_t scroll_speed) {
+    int w = app->draw_target->width;
+    int h = app->draw_target->height;
+
     starfield->num_stars = num_stars;
     starfield->num_layers = num_layers;
     starfield->scroll_speed = scroll_speed;
@@ -36,118 +37,88 @@ static void init_starfield(starfield_t *starfield, int num_stars,
         star_t *current = &starfield->stars[i];
         bool is_super_fast = i % num_stars == 1;
 
-        current->x = (float32_t)(rand() % SCREEN_WIDTH);
-        current->y = (float32_t)(rand() % SCREEN_HEIGHT);
+        current->x = (float32_t)(rand() % w);
+        current->y = (float32_t)(rand() % h);
         current->layer_index = (is_super_fast) ? 10 : (i % num_layers) + 1;
         current->layer_modifier =
             (float32_t)current->layer_index / (float32_t)num_layers;
         current->is_super_fast = is_super_fast;
     }
+
+    return;
 }
 
-static void update_starfield(starfield_t starfield, float32_t animation_time) {
-    for (int i = 0; i < starfield.num_stars; i++) {
-        star_t *current = &starfield.stars[i];
+static void update(starfield_t *starfield, scg_app_t *app) {
+    int w = app->draw_target->width;
+    int h = app->draw_target->height;
+    float32_t delta_time = app->delta_time;
+    int num_stars = starfield->num_stars;
+
+    for (int i = 0; i < num_stars; i++) {
+        star_t *current = &starfield->stars[i];
         float32_t speed_modifier =
             (current->is_super_fast) ? 3.0f : current->layer_modifier;
-        current->y +=
-            (starfield.scroll_speed * speed_modifier) * animation_time;
+        current->y += (starfield->scroll_speed * speed_modifier) * delta_time;
 
-        if (current->y > SCREEN_HEIGHT + starfield.star_size) {
-            current->x = (float32_t)(rand() % SCREEN_WIDTH);
-            current->y = -(float32_t)starfield.star_size * 4.0f;
+        if (current->y > (h + starfield->star_size)) {
+            current->x = (float32_t)(rand() % w);
+            current->y = -(float32_t)starfield->star_size * 4.0f;
         }
     }
+
+    return;
 }
 
-static void draw_starfield(scg_image_t *back_buffer, starfield_t starfield) {
-    for (int i = 0; i < starfield.num_stars; i++) {
+static void draw(scg_image_t *draw_target, starfield_t *starfield) {
+    scg_image_set_blend_mode(draw_target, SCG_BLEND_MODE_ALPHA);
+    scg_image_clear(draw_target, SCG_COLOR_BLACK);
+
+    int num_stars = starfield->num_stars;
+
+    for (int i = 0; i < num_stars; i++) {
         scg_pixel_t star_color = SCG_COLOR_WHITE;
-        star_t *current = &starfield.stars[i];
+        star_t *current = &starfield->stars[i];
 
         star_color.data.a =
             (uint8_t)((float32_t)star_color.data.a * current->layer_modifier);
 
         if (current->is_super_fast) {
-            scg_image_fill_rect(back_buffer, (int)current->x, (int)current->y,
-                                starfield.star_size, starfield.star_size * 2,
+            scg_image_fill_rect(draw_target, (int)current->x, (int)current->y,
+                                starfield->star_size, starfield->star_size * 2,
                                 star_color);
         } else {
-            scg_image_set_pixel(back_buffer, (int)current->x, (int)current->y,
+            scg_image_set_pixel(draw_target, (int)current->x, (int)current->y,
                                 star_color);
         }
     }
+
+    return;
 }
 
 int main(void) {
-    scg_error_t err = scg_init();
-    if (!err.none) {
-        scg_log_error("Failed to initialise scg. Error: %s", err.message);
-        return -1;
-    }
+    scg_config_t config = scg_config_new_default();
+    config.video.title = "SCG Example: Starfield";
 
-    scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
-    if (!err.none) {
-        scg_log_error("Failed to create back buffer. Error: %s", err.message);
-        return -1;
-    }
-
-    scg_screen_t screen;
-    err = scg_screen_new(&screen, "SCG Example: Starfield", &back_buffer,
-                         WINDOW_SCALE, FULLSCREEN);
-    if (!err.none) {
-        scg_log_error("Failed to create screen. Error: %s", err.message);
-        return -1;
-    }
-    scg_screen_log_info(&screen);
-
-    scg_keyboard_t keyboard;
-    scg_keyboard_new(&keyboard);
+    scg_app_t app;
+    scg_app_init(&app, config);
 
     srand(scg_get_performance_counter());
 
-    const int num_stars = 1000;
-    const float32_t scroll_speed = 90.0f;
-    const int num_layers = 10;
-
     starfield_t starfield;
-    init_starfield(&starfield, num_stars, num_layers, scroll_speed);
+    init(&starfield, &app, STARFIELD_NUM_STARS, STARFIELD_NUM_LAYERS,
+         STARFIELD_SCROLL_SPEED);
 
-    scg_pixel_t clear_color = SCG_COLOR_BLACK;
+    while (app.running) {
+        scg_app_begin_frame(&app);
 
-    while (scg_screen_is_running(&screen)) {
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
-            scg_screen_close(&screen);
-        }
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
-            scg_error_t err =
-                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
-            if (!err.none) {
-                scg_log_warn("Failed to save screenshot to %s. Error: %s",
-                             SCREENSHOT_FILEPATH, err.message);
-            }
+        update(&starfield, &app);
 
-            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
-        }
+        draw(app.draw_target, &starfield);
 
-        update_starfield(starfield, screen.target_frame_time_secs);
-
-        scg_image_clear(&back_buffer, clear_color);
-
-        scg_image_set_blend_mode(&back_buffer, SCG_BLEND_MODE_ALPHA);
-        draw_starfield(&back_buffer, starfield);
-
-        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
-
-        scg_keyboard_update(&keyboard);
-        scg_screen_present(&screen);
+        scg_app_end_frame(&app);
     }
 
-    free(starfield.stars);
-    scg_screen_destroy(&screen);
-    scg_image_destroy(&back_buffer);
-    scg_quit();
+    scg_app_shutdown(&app);
 
     return 0;
 }

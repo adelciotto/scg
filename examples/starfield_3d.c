@@ -2,11 +2,9 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
-#define WINDOW_SCALE 1
-#define FULLSCREEN false
-#define SCREENSHOT_FILEPATH "screenshots/starfield_3d.bmp"
+#define STARFIELD_NUM_STARS 4000
+#define STARFIELD_WORLD_SPEED 120.0f
+#define STARFIELD_MAX_DISTANCE 300.0f
 
 typedef struct star_t {
     float32_t x;
@@ -25,8 +23,11 @@ typedef struct starfield_t {
     float32_t vertical_view_distance;
 } starfield_t;
 
-static void init_starfield(starfield_t *starfield, int num_stars,
-                           float32_t max_distance, float32_t world_speed) {
+static void init(starfield_t *starfield, scg_app_t *app, int num_stars,
+                 float32_t max_distance, float32_t world_speed) {
+    int w = app->draw_target->width;
+    int h = app->draw_target->height;
+
     float32_t horizontal_fov = 100.0f * SCG_PI / 180.0f;
     float32_t vertical_fov = 80.0f * SCG_PI / 180.0f;
 
@@ -35,130 +36,99 @@ static void init_starfield(starfield_t *starfield, int num_stars,
     starfield->max_distance = max_distance;
     starfield->world_speed = world_speed;
     starfield->horizontal_view_distance =
-        (float32_t)(SCREEN_WIDTH / 2.0f) / tanf(horizontal_fov / 2.0f);
+        (float32_t)(w / 2.0f) / tanf(horizontal_fov / 2.0f);
     starfield->vertical_view_distance =
-        (float32_t)(SCREEN_HEIGHT / 2.0f) / tanf(vertical_fov / 2.0f);
+        (float32_t)(h / 2.0f) / tanf(vertical_fov / 2.0f);
     starfield->stars = malloc(num_stars * sizeof(star_t));
 
     for (int i = 0; i < num_stars; i++) {
         star_t *current = &starfield->stars[i];
         bool is_super_fast = i % num_stars == 1;
 
-        current->x =
-            (float32_t)(rand() % SCREEN_WIDTH) - (float32_t)SCREEN_WIDTH / 2.0f;
-        current->y = (float32_t)SCREEN_HEIGHT / 2.0f -
-                     (float32_t)(rand() % SCREEN_HEIGHT);
+        current->x = (float32_t)(rand() % w) - (float32_t)w / 2.0f;
+        current->y = (float32_t)h / 2.0f - (float32_t)(rand() % h);
         current->z = (float32_t)(rand() % (int)max_distance);
         current->is_super_fast = is_super_fast;
     }
+
+    return;
 }
 
-static void update_starfield(starfield_t starfield, float32_t animation_time) {
-    for (int i = 0; i < starfield.num_stars; i++) {
-        star_t *current = &starfield.stars[i];
+static void update(starfield_t *starfield, scg_app_t *app) {
+    int w = app->draw_target->width;
+    int h = app->draw_target->height;
+    float32_t delta_time = app->delta_time;
+    int num_stars = starfield->num_stars;
+
+    for (int i = 0; i < num_stars; i++) {
+        star_t *current = &starfield->stars[i];
         float32_t speed_modifier = (current->is_super_fast) ? 3.0f : 1.0f;
-        current->z -= (starfield.world_speed * speed_modifier) * animation_time;
+        current->z -= (starfield->world_speed * speed_modifier) * delta_time;
 
         if (current->z <= 0) {
-            current->x = (float32_t)(rand() % SCREEN_WIDTH) -
-                         (float32_t)SCREEN_WIDTH / 2.0f;
-            current->y = (float32_t)SCREEN_HEIGHT / 2.0f -
-                         (float32_t)(rand() % SCREEN_HEIGHT);
-            current->z = starfield.max_distance + (float32_t)(rand() % 10);
+            current->x = (float32_t)(rand() % w) - (float32_t)w / 2.0f;
+            current->y = (float32_t)h / 2.0f - (float32_t)(rand() % h);
+            current->z = starfield->max_distance + (float32_t)(rand() % 10);
         }
     }
+
+    return;
 }
 
-static void draw_starfield(scg_image_t *back_buffer, starfield_t starfield) {
-    for (int i = 0; i < starfield.num_stars; i++) {
+static void draw(scg_image_t *draw_target, starfield_t *starfield) {
+    scg_image_clear(draw_target, SCG_COLOR_BLACK);
+
+    int w = draw_target->width;
+    int h = draw_target->height;
+    int num_stars = starfield->num_stars;
+
+    for (int i = 0; i < num_stars; i++) {
         scg_pixel_t star_color = SCG_COLOR_WHITE;
-        star_t *current = &starfield.stars[i];
+        star_t *current = &starfield->stars[i];
 
         float32_t shade =
-            scg_max_float32(1.0f - current->z / starfield.max_distance, 0.0f);
+            scg_max_float32(1.0f - current->z / starfield->max_distance, 0.0f);
 
         star_color.data.r = (uint8_t)((float32_t)star_color.data.r * shade);
         star_color.data.g = (uint8_t)((float32_t)star_color.data.g * shade);
         star_color.data.b = (uint8_t)((float32_t)star_color.data.b * shade);
 
         float32_t z = scg_max_float32(current->z, 1.0f);
-        float32_t x = (current->x * starfield.horizontal_view_distance) / z;
-        x += (float32_t)SCREEN_WIDTH / 2.0f;
-        float32_t y = (float32_t)SCREEN_HEIGHT / 2.0f -
-                      ((current->y * starfield.vertical_view_distance) / z);
+        float32_t x = (current->x * starfield->horizontal_view_distance) / z;
+        x += (float32_t)w / 2.0f;
+        float32_t y = (float32_t)h / 2.0f -
+                      ((current->y * starfield->vertical_view_distance) / z);
 
-        scg_image_set_pixel(back_buffer, (int)x, (int)y, star_color);
+        scg_image_set_pixel(draw_target, (int)x, (int)y, star_color);
     }
+
+    return;
 }
 
 int main(void) {
-    scg_error_t err = scg_init();
-    if (!err.none) {
-        scg_log_error("Failed to initialise scg. Error: %s", err.message);
-        return -1;
-    }
+    scg_config_t config = scg_config_new_default();
+    config.video.title = "SCG Example: Starfield 3D";
 
-    scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
-    if (!err.none) {
-        scg_log_error("Failed to create back buffer. Error: %s", err.message);
-        return -1;
-    }
-
-    scg_screen_t screen;
-    err = scg_screen_new(&screen, "SCG Example: Starfield 3D", &back_buffer,
-                         WINDOW_SCALE, FULLSCREEN);
-    if (!err.none) {
-        scg_log_error("Failed to create screen. Error: %s", err.message);
-        return -1;
-    }
-    scg_screen_log_info(&screen);
-
-    scg_keyboard_t keyboard;
-    scg_keyboard_new(&keyboard);
+    scg_app_t app;
+    scg_app_init(&app, config);
 
     srand(scg_get_performance_counter());
 
-    const int num_stars = 4000;
-    const float32_t world_speed = 120.0f;
-    const float32_t max_distance = 300.0f;
-
     starfield_t starfield;
-    init_starfield(&starfield, num_stars, max_distance, world_speed);
+    init(&starfield, &app, STARFIELD_NUM_STARS, STARFIELD_MAX_DISTANCE,
+         STARFIELD_WORLD_SPEED);
 
-    scg_pixel_t clear_color = SCG_COLOR_BLACK;
+    while (app.running) {
+        scg_app_begin_frame(&app);
 
-    while (scg_screen_is_running(&screen)) {
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
-            scg_screen_close(&screen);
-        }
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
-            scg_error_t err =
-                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
-            if (!err.none) {
-                scg_log_warn("Failed to save screenshot to %s. Error: %s",
-                             SCREENSHOT_FILEPATH, err.message);
-            }
+        update(&starfield, &app);
 
-            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
-        }
+        draw(app.draw_target, &starfield);
 
-        update_starfield(starfield, screen.target_frame_time_secs);
-
-        scg_image_clear(&back_buffer, clear_color);
-
-        draw_starfield(&back_buffer, starfield);
-
-        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
-
-        scg_keyboard_update(&keyboard);
-        scg_screen_present(&screen);
+        scg_app_end_frame(&app);
     }
 
-    free(starfield.stars);
-    scg_screen_destroy(&screen);
-    scg_image_destroy(&back_buffer);
-    scg_quit();
+    scg_app_shutdown(&app);
 
     return 0;
 }

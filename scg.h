@@ -13,7 +13,8 @@
 //
 // Do this:
 // #define SCG_IMPLEMENTATION
-// before you include this file in *one* C or C++ file to create the implementation.
+// before you include this file in *one* C or C++ file to create the
+// implementation.
 //
 // // i.e. it should look like this:
 // #include ...
@@ -43,18 +44,18 @@ extern "C" {
 
 #define SCG_FONT_SIZE 8
 
-#define scg_log_error(...)                                                     \
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
-#define scg_log_warn(...) SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
-#define scg_log_info(...) SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, __VA_ARGS__)
-
-typedef struct scg_error_t {
-    bool none;
-    const char *message;
-} scg_error_t;
-
-#define scg_error_new(error_msg) ((scg_error_t){false, error_msg})
-#define scg_error_none() ((scg_error_t){true, ""})
+#define scg_log_errorf(fmt, ...)                                               \
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s() in %s, line %i: " fmt,    \
+                 __func__, __FILE__, __LINE__, __VA_ARGS__)
+#define scg_log_error(msg) scg_log_errorf("%s", msg)
+#define scg_log_warnf(fmt, ...)                                                \
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "%s() in %s, line %i: " fmt,     \
+                __func__, __FILE__, __LINE__, __VA_ARGS__)
+#define scg_log_warn(msg) scg_log_warnf("%s", msg)
+#define scg_log_infof(fmt, ...)                                                \
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%s() in %s, line %i: " fmt,     \
+                __func__, __FILE__, __LINE__, __VA_ARGS__)
+#define scg_log_info(msg) scg_log_info("%s", msg)
 
 extern int scg_min_int(int val, int min);
 extern int scg_max_int(int val, int max);
@@ -118,9 +119,8 @@ typedef struct scg_frame_metrics_t {
     float64_t fps;
 } scg_frame_metrics_t;
 
-extern scg_error_t scg_image_new(scg_image_t *image, int width, int height);
-extern scg_error_t scg_image_new_from_bmp(scg_image_t *image,
-                                          const char *filepath);
+extern scg_image_t *scg_image_new(int width, int height);
+extern scg_image_t *scg_image_new_from_bmp(const char *filepath);
 extern void scg_image_set_blend_mode(scg_image_t *image,
                                      scg_blend_mode_t blend_mode);
 extern scg_pixel_t scg_image_get_pixel(scg_image_t *image, int x, int y);
@@ -150,37 +150,38 @@ extern void scg_image_draw_wstring(scg_image_t *image, const wchar_t *str,
                                    scg_pixel_t color);
 extern void scg_image_draw_frame_metrics(scg_image_t *image,
                                          scg_frame_metrics_t frame_metrics);
-extern scg_error_t scg_image_save_to_bmp(scg_image_t *image,
-                                         const char *filepath);
-extern void scg_image_destroy(scg_image_t *image);
+extern bool scg_image_save_to_bmp(scg_image_t *image, const char *filepath);
+extern void scg_image_free(scg_image_t *image);
 
-extern scg_error_t scg_init(void);
-extern void scg_quit(void);
+#define SCG__MAX_SOUNDS 16
 
-typedef struct scg_screen_t scg_screen_t;
+typedef struct scg_sound_t {
+    int device_id;
+    SDL_AudioSpec sdl_spec;
+    uint32_t length;
+    uint8_t *buffer;
+    uint32_t play_offset;
+    uint8_t *end_position;
+    bool is_playing;
+    bool loop;
+} scg_sound_t;
 
-scg_error_t scg_screen_new(scg_screen_t *screen, const char *title,
-                           scg_image_t *back_buffer, int window_scale,
-                           bool fullscreen);
-extern bool scg_screen_is_running(scg_screen_t *screen);
-extern void scg_screen_present(scg_screen_t *screen);
-extern void scg_screen_log_info(scg_screen_t *screen);
-extern void scg_screen_close(scg_screen_t *screen);
-extern void scg_screen_destroy(scg_screen_t *screen);
+typedef struct scg_audio_t {
+    SDL_AudioDeviceID device_id;
+    int frequency;
+    uint8_t num_channels;
+    uint16_t num_samples;
+    int bytes_per_sample;
+    int latency_sample_count;
+    uint32_t buffer_size;
+    uint8_t *buffer;
 
-typedef struct scg_sound_device_t scg_sound_device_t;
+    scg_sound_t *sounds[SCG__MAX_SOUNDS]; // TODO: use linked list for sounds?
+    int num_sounds;
+} scg_audio_t;
 
-extern scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
-                                        int target_fps);
-extern void scg_sound_device_log_info(scg_sound_device_t *sound_device);
-extern void scg_sound_device_update(scg_sound_device_t *sound_device);
-extern void scg_sound_device_destroy(scg_sound_device_t *sound_device);
-
-typedef struct scg_sound_t scg_sound_t;
-
-extern scg_error_t scg_sound_new_from_wav(scg_sound_device_t *sound_device,
-                                          scg_sound_t *sound,
-                                          const char *filepath, bool loop);
+extern scg_sound_t *scg_sound_new_from_wav(scg_audio_t *audio,
+                                           const char *filepath, bool loop);
 extern void scg_sound_play(scg_sound_t *sound);
 extern float32_t scg_sound_get_position(scg_sound_t *sound);
 
@@ -196,72 +197,71 @@ typedef enum scg_key_code_t {
     SCG_KEY_ESCAPE = SDL_SCANCODE_ESCAPE
 } scg_key_code_t;
 
-typedef struct scg_keyboard_t scg_keyboard_t;
+typedef struct scg_keyboard_t {
+    const uint8_t *current_key_states;
+    uint8_t previous_key_states[SDL_NUM_SCANCODES];
+} scg_keyboard_t;
 
-extern void scg_keyboard_new(scg_keyboard_t *keyboard);
 extern bool scg_keyboard_is_key_down(scg_keyboard_t *keyboard,
                                      scg_key_code_t code);
 extern bool scg_keyboard_is_key_up(scg_keyboard_t *keyboard,
                                    scg_key_code_t code);
 extern bool scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
                                           scg_key_code_t code);
-extern void scg_keyboard_update(scg_keyboard_t *keyboard);
 
-///////////////
-//
-// Everything below here is implementation details
-//
+typedef struct scg_config_t {
+    struct {
+        int width;
+        int height;
+        const char *title;
+        int scale;
+        bool fullscreen;
+        bool vsync;
+        bool show_frame_metrics;
+    } video;
 
-#define SCG_MAX_SOUNDS 16 // TODO: use linked list for sounds?
+    struct {
+        bool enabled;
+        bool text_input;
+    } input;
 
-struct scg_screen_t {
-    const char *title;
-    int width;
-    int height;
-    int window_scale;
+    struct {
+        bool enabled;
+        int volume;
+    } audio;
+} scg_config_t;
 
+extern scg_config_t scg_config_new_default(void);
+
+typedef struct scg__screen_t {
     int target_fps;
     float64_t target_frame_time_secs;
     uint64_t last_frame_counter;
     float64_t frame_metrics_update_counter;
     scg_frame_metrics_t frame_metrics;
-    bool is_running;
+    bool vsync;
 
     SDL_Window *sdl_window;
     SDL_Renderer *sdl_renderer;
     SDL_Texture *sdl_texture;
-    scg_image_t *back_buffer;
-};
+} scg__screen_t;
 
-struct scg_sound_t {
-    int device_id;
-    SDL_AudioSpec sdl_spec;
-    uint32_t length;
-    uint8_t *buffer;
-    uint32_t play_offset;
-    uint8_t *end_position;
-    bool is_playing;
-    bool loop;
-};
+typedef struct scg_app_t {
+    bool running;
+    float32_t delta_time;
+    scg_config_t config;
+    scg_image_t *draw_target;
+    scg_keyboard_t *keyboard;
+    scg_audio_t *audio;
 
-struct scg_sound_device_t {
-    SDL_AudioDeviceID device_id;
-    int frequency;
-    uint8_t num_channels;
-    uint16_t num_samples;
-    int bytes_per_sample;
-    int latency_sample_count;
-    uint32_t buffer_size;
-    uint8_t *buffer;
+    uint64_t delta_time_counter;
+    scg__screen_t *screen;
+} scg_app_t;
 
-    scg_sound_t *sounds[SCG_MAX_SOUNDS];
-    int num_sounds;
-};
-
-struct scg_keyboard_t {
-    const uint8_t *current_key_states;
-    uint8_t previous_key_states[SDL_NUM_SCANCODES];
-};
+extern void scg_app_init(scg_app_t *app, scg_config_t config);
+extern void scg_app_begin_frame(scg_app_t *app);
+extern void scg_app_end_frame(scg_app_t *app);
+extern void scg_app_shutdown(scg_app_t *app);
 
 #ifdef __cplusplus
 }
@@ -292,20 +292,25 @@ struct scg_keyboard_t {
 
 #define SCG__IMAGE_PIXEL_FORMAT SDL_PIXELFORMAT_RGBA32
 
-extern const char scg__font8x8[SCG__FONT_NUM_CHARS][SCG_FONT_SIZE];
-extern const char scg__font8x8_hiragana[SCG__FONT_HIRAGANA_NUM_CHARS]
+#define SCG__MAX_VOLUME SDL_MIX_MAXVOLUME
+
+static const char scg__font8x8[SCG__FONT_NUM_CHARS][SCG_FONT_SIZE];
+static const char scg__font8x8_hiragana[SCG__FONT_HIRAGANA_NUM_CHARS]
                                        [SCG_FONT_SIZE];
 
-static const char *scg__sprintf(const char *fmt, ...) {
-    static char buffer[1024];
-    va_list v;
+static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
+                                      const char *title, int scale,
+                                      bool fullscreen, bool vsync);
+static void scg__screen_present(scg__screen_t *screen,
+                                scg_image_t *draw_target);
+static void scg__screen_free(scg__screen_t *screen);
 
-    va_start(v, fmt);
-    vsnprintf(buffer, 1024, fmt, v);
-    va_end(v);
+static scg_keyboard_t *scg__keyboard_new(void);
+static void scg__keyboard_update(scg_keyboard_t *keyboard);
 
-    return buffer;
-}
+static scg_audio_t *scg__audio_new(int target_fps);
+static void scg__audio_update(scg_audio_t *audio);
+static void scg__audio_free(scg_audio_t *audio);
 
 //
 // scg_min_int implementation
@@ -394,19 +399,29 @@ float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
 // scg_image_new implementation
 //
 
-scg_error_t scg_image_new(scg_image_t *image, int width, int height) {
+scg_image_t *scg_image_new(int width, int height) {
     uint32_t *pixels = calloc(width * height, sizeof(*pixels));
     if (pixels == NULL) {
-        return scg_error_new("Failed to allocate memory for image");
+        scg_log_error("Failed to allocate memory for pixels");
+
+        return NULL;
     }
 
     SDL_PixelFormat *pixel_format = SDL_AllocFormat(SCG__IMAGE_PIXEL_FORMAT);
     if (pixel_format == NULL) {
-        free(pixels);
+        scg_log_errorf("Failed to allocate pixel format. %s", SDL_GetError());
 
-        const char *error_msg =
-            scg__sprintf("Failed to allocate pixel format. %s", SDL_GetError());
-        return scg_error_new(error_msg);
+        free(pixels);
+        return NULL;
+    }
+
+    scg_image_t *image = malloc(sizeof(*image));
+    if (image == NULL) {
+        scg_log_error("Failed to allocate memory for image");
+
+        SDL_FreeFormat(pixel_format);
+        free(pixels);
+        return NULL;
     }
 
     image->width = width;
@@ -416,41 +431,41 @@ scg_error_t scg_image_new(scg_image_t *image, int width, int height) {
     image->pixels = pixels;
     image->blend_mode = SCG_BLEND_MODE_NONE;
 
-    return scg_error_none();
+    return image;
 }
 
 //
 // scg_image_new_from_bmp implementation
 //
 
-scg_error_t scg_image_new_from_bmp(scg_image_t *image, const char *filepath) {
+scg_image_t *scg_image_new_from_bmp(const char *filepath) {
     SDL_Surface *surface = SDL_LoadBMP(filepath);
     if (surface == NULL) {
-        const char *error_msg = scg__sprintf("Failed to load %s image file. %s",
-                                             filepath, SDL_GetError());
-        return scg_error_new(error_msg);
+        scg_log_errorf("Failed to load image file at %s. %s", filepath,
+                       SDL_GetError());
+
+        return NULL;
     }
 
     // Convert the surface to RGBA32 pixel format.
     SDL_PixelFormat *pixel_format = SDL_AllocFormat(SCG__IMAGE_PIXEL_FORMAT);
     if (pixel_format == NULL) {
-        SDL_FreeSurface(surface);
+        scg_log_errorf(
+            "Failed to allocate pixel format for image file at %s. %s",
+            filepath, SDL_GetError());
 
-        const char *error_msg = scg__sprintf(
-            "Failed to allocate pixel format for %s image file. %s", filepath,
-            SDL_GetError());
-        return scg_error_new(error_msg);
+        SDL_FreeSurface(surface);
+        return NULL;
     }
     SDL_Surface *converted_surface =
         SDL_ConvertSurface(surface, pixel_format, 0);
     if (converted_surface == NULL) {
+        scg_log_errorf("Failed to convert surface for image file at %s. %s",
+                       filepath, SDL_GetError());
+
         SDL_FreeFormat(pixel_format);
         SDL_FreeSurface(surface);
-
-        const char *error_msg =
-            scg__sprintf("Failed to convert surface for %s image file. %s",
-                         filepath, SDL_GetError());
-        return scg_error_new(error_msg);
+        return NULL;
     }
 
     // We no longer need the original surface.
@@ -464,13 +479,24 @@ scg_error_t scg_image_new_from_bmp(scg_image_t *image, const char *filepath) {
     // Allocate new pixel buffer and copy over the converted surface pixel data.
     uint32_t *pixels = malloc(surface_pitch * surface_h);
     if (pixels == NULL) {
-        SDL_FreeFormat(pixel_format);
+        scg_log_errorf("Failed to allocate memory for image file at %s",
+                       filepath);
 
-        const char *error_msg = scg__sprintf(
-            "Failed to allocate memory for %s image file", filepath);
-        return scg_error_new(error_msg);
+        SDL_FreeSurface(converted_surface);
+        SDL_FreeFormat(pixel_format);
+        return NULL;
     }
     memcpy(pixels, surface_pixels, surface_pitch * surface_h);
+
+    scg_image_t *image = malloc(sizeof(*image));
+    if (image == NULL) {
+        scg_log_error("Failed to allocate memory for image");
+
+        free(pixels);
+        SDL_FreeSurface(converted_surface);
+        SDL_FreeFormat(pixel_format);
+        return NULL;
+    }
 
     // Assign all the image properties.
     image->width = surface_w;
@@ -483,7 +509,7 @@ scg_error_t scg_image_new_from_bmp(scg_image_t *image, const char *filepath) {
     // We no longer need the converted surface.
     SDL_FreeSurface(converted_surface);
 
-    return scg_error_none();
+    return image;
 }
 
 //
@@ -492,6 +518,8 @@ scg_error_t scg_image_new_from_bmp(scg_image_t *image, const char *filepath) {
 
 void scg_image_set_blend_mode(scg_image_t *image, scg_blend_mode_t blend_mode) {
     image->blend_mode = blend_mode;
+
+    return;
 }
 
 //
@@ -554,6 +582,8 @@ void scg_image_set_pixel(scg_image_t *image, int x, int y, scg_pixel_t color) {
             scg_pixel_new_rgb((uint8_t)r, (uint8_t)g, (uint8_t)b);
         image->pixels[i] = blended_color.packed;
     }
+
+    return;
 }
 
 //
@@ -567,6 +597,8 @@ void scg_image_clear(scg_image_t *image, scg_pixel_t color) {
     for (int i = 0; i < num_pixels; i++) {
         image->pixels[i] = pixel;
     }
+
+    return;
 }
 
 //
@@ -583,6 +615,8 @@ void scg_image_draw_image(scg_image_t *dest, scg_image_t *src, int x, int y) {
             scg_image_set_pixel(dest, x + j, y + i, color);
         }
     }
+
+    return;
 }
 
 //
@@ -640,6 +674,8 @@ void scg_image_draw_image_transform(scg_image_t *dest, scg_image_t *src, int x,
             }
         }
     }
+
+    return;
 }
 
 //
@@ -703,6 +739,8 @@ void scg_image_draw_line(scg_image_t *image, int x0, int y0, int x1, int y1,
             y0 += step_y;
         }
     }
+
+    return;
 }
 
 //
@@ -720,6 +758,8 @@ void scg_image_draw_rect(scg_image_t *image, int x, int y, int w, int h,
     scg_image_draw_line(image, maxx, miny, maxx, maxy, color);
     scg_image_draw_line(image, maxx, maxy, minx, maxy, color);
     scg_image_draw_line(image, minx, maxy, minx, miny, color);
+
+    return;
 }
 
 //
@@ -733,6 +773,8 @@ void scg_image_fill_rect(scg_image_t *image, int x, int y, int w, int h,
             scg_image_set_pixel(image, x + j, y + i, color);
         }
     }
+
+    return;
 }
 
 static void scg__draw_char_bitmap(scg_image_t *image, const char *bitmap, int x,
@@ -746,6 +788,8 @@ static void scg__draw_char_bitmap(scg_image_t *image, const char *bitmap, int x,
             }
         }
     }
+
+    return;
 }
 
 //
@@ -761,6 +805,8 @@ void scg_image_draw_char(scg_image_t *image, char ch, int x, int y,
 
     const char *bitmap = scg__font8x8[char_code];
     scg__draw_char_bitmap(image, bitmap, x, y, color);
+
+    return;
 }
 
 //
@@ -785,6 +831,8 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
 
         current_x += SCG_FONT_SIZE;
     }
+
+    return;
 }
 
 static const char *scg__bitmap_from_wchar(wchar_t code) {
@@ -814,6 +862,8 @@ void scg_image_draw_wchar(scg_image_t *image, wchar_t char_code, int x, int y,
     }
 
     scg__draw_char_bitmap(image, bitmap, x, y, color);
+
+    return;
 }
 
 //
@@ -838,6 +888,8 @@ void scg_image_draw_wstring(scg_image_t *image, const wchar_t *str, int x,
 
         current_x += SCG_FONT_SIZE;
     }
+
+    return;
 }
 
 //
@@ -868,439 +920,48 @@ void scg_image_draw_frame_metrics(scg_image_t *image,
     scg_image_set_blend_mode(image, SCG_BLEND_MODE_NONE);
     scg_image_draw_string(image, buffer, 10, 10, 0, color);
     scg_image_set_blend_mode(image, blend_mode);
+
+    return;
 }
 
 //
 // scg_image_save_to_bmp implementation
 //
 
-scg_error_t scg_image_save_to_bmp(scg_image_t *image, const char *filepath) {
+bool scg_image_save_to_bmp(scg_image_t *image, const char *filepath) {
     SDL_Surface *surface = SDL_CreateRGBSurfaceWithFormatFrom(
         (void *)image->pixels, image->width, image->height, 32, image->pitch,
         SCG__IMAGE_PIXEL_FORMAT);
     if (surface == NULL) {
-        const char *error_msg =
-            scg__sprintf("Failed to create SDL surface from image. Error: %s",
-                         SDL_GetError());
-        return scg_error_new(error_msg);
+        scg_log_errorf("Failed to create SDL surface from image. %s",
+                       SDL_GetError());
+
+        return false;
     }
 
     if (SDL_SaveBMP(surface, filepath) != 0) {
-        SDL_FreeSurface(surface);
+        scg_log_errorf("Failed to save image to %s. %s", filepath,
+                       SDL_GetError());
 
-        const char *error_msg = scg__sprintf(
-            "Failed to save image to %s. Error: %s", filepath, SDL_GetError());
-        return scg_error_new(error_msg);
+        SDL_FreeSurface(surface);
+        return false;
     }
 
     SDL_FreeSurface(surface);
 
-    return scg_error_none();
+    return true;
 }
 
 //
-// scg_image_destroy implementation
+// scg_image_free implementation
 //
 
-void scg_image_destroy(scg_image_t *image) {
+void scg_image_free(scg_image_t *image) {
     SDL_FreeFormat(image->pixel_format);
     free(image->pixels);
-}
+    free(image);
 
-//
-// scg_init implementation
-//
-
-scg_error_t scg_init(void) {
-    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
-        return scg_error_new(SDL_GetError());
-    }
-
-    return scg_error_none();
-}
-
-//
-// scg_quit implementation
-//
-
-void scg_quit(void) {
-    SDL_Quit();
-}
-
-static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
-    int result = display_mode.refresh_rate;
-
-    if (result == 0) {
-        return SCG__DEFAULT_REFRESH_RATE;
-    }
-
-    return result;
-}
-
-//
-// scg_screen_new implementation
-//
-
-scg_error_t scg_screen_new(scg_screen_t *screen, const char *title,
-                           scg_image_t *back_buffer, int window_scale,
-                           bool fullscreen) {
-    SDL_DisplayMode display_mode;
-    if (SDL_GetDesktopDisplayMode(0, &display_mode) != 0) {
-        return scg_error_new(SDL_GetError());
-    }
-
-    int w = back_buffer->width;
-    int h = back_buffer->height;
-
-    SDL_Window *sdl_window = SDL_CreateWindow(
-        title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w * window_scale,
-        h * window_scale, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
-    if (sdl_window == NULL) {
-        return scg_error_new(SDL_GetError());
-    }
-
-    if (fullscreen) {
-        SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
-    }
-
-    SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-    SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
-
-    SDL_Renderer *sdl_renderer = SDL_CreateRenderer(
-        sdl_window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-    if (sdl_renderer == NULL) {
-        SDL_DestroyWindow(sdl_window);
-
-        return scg_error_new(SDL_GetError());
-    }
-
-    SDL_RenderSetLogicalSize(sdl_renderer, w, h);
-
-    SDL_Texture *sdl_texture =
-        SDL_CreateTexture(sdl_renderer, SCG__IMAGE_PIXEL_FORMAT,
-                          SDL_TEXTUREACCESS_STREAMING, w, h);
-    if (sdl_texture == NULL) {
-        SDL_DestroyRenderer(sdl_renderer);
-        SDL_DestroyWindow(sdl_window);
-
-        return scg_error_new(SDL_GetError());
-    }
-
-    screen->title = title;
-    screen->width = w;
-    screen->height = h;
-    screen->window_scale = window_scale;
-    screen->target_fps = scg__get_monitor_refresh_rate(display_mode);
-    screen->target_frame_time_secs = 1.0 / (float64_t)screen->target_fps;
-    screen->last_frame_counter = scg_get_performance_counter();
-    screen->sdl_window = sdl_window;
-    screen->sdl_renderer = sdl_renderer;
-    screen->sdl_texture = sdl_texture;
-    screen->back_buffer = back_buffer;
-    screen->frame_metrics_update_counter = scg_get_performance_counter();
-    screen->frame_metrics.target_fps = screen->target_fps;
-    screen->is_running = true;
-
-    return scg_error_none();
-}
-
-//
-// scg_screen_is_running implementation
-//
-
-bool scg_screen_is_running(scg_screen_t *screen) {
-    SDL_Event event;
-
-    SDL_PollEvent(&event);
-    switch (event.type) {
-    case SDL_QUIT:
-        screen->is_running = false;
-        break;
-    }
-
-    return screen->is_running;
-}
-
-//
-// scg_screen_present implementation
-//
-
-void scg_screen_present(scg_screen_t *screen) {
-    // Wait until we have reached the target amount of time per frame (e.g 60hz,
-    // ~16ms). Spinning in a while loop seems to be the most accurate way to do
-    // this, as trying to use SDL_Delay (sleeping) is dependant on other
-    // factors.
-    {
-        float64_t target_secs = screen->target_frame_time_secs;
-        float64_t elapsed_time_secs = scg_get_elapsed_time_secs(
-            scg_get_performance_counter(), screen->last_frame_counter);
-
-        if (elapsed_time_secs < target_secs) {
-            while (elapsed_time_secs < target_secs) {
-                elapsed_time_secs = scg_get_elapsed_time_secs(
-                    scg_get_performance_counter(), screen->last_frame_counter);
-            }
-        }
-    }
-
-    uint64_t end_frame_counter = scg_get_performance_counter();
-
-    SDL_UpdateTexture(screen->sdl_texture, NULL, screen->back_buffer->pixels,
-                      screen->back_buffer->pitch);
-    SDL_RenderClear(screen->sdl_renderer);
-    SDL_RenderCopy(screen->sdl_renderer, screen->sdl_texture, NULL, NULL);
-    SDL_RenderPresent(screen->sdl_renderer);
-
-    // Update the frame metrics every second.
-    {
-        float64_t elapsed_time_secs =
-            scg_get_elapsed_time_secs(scg_get_performance_counter(),
-                                      screen->frame_metrics_update_counter);
-        if (elapsed_time_secs >= 1.0f) {
-            screen->frame_metrics.frame_time_secs = scg_get_elapsed_time_secs(
-                end_frame_counter, screen->last_frame_counter);
-            screen->frame_metrics.frame_time_millisecs =
-                scg_get_elapsed_time_millisecs(end_frame_counter,
-                                               screen->last_frame_counter);
-            screen->frame_metrics.fps =
-                (float64_t)scg_get_performance_frequency() /
-                (float64_t)(end_frame_counter - screen->last_frame_counter);
-
-            screen->frame_metrics_update_counter =
-                scg_get_performance_counter();
-        }
-    }
-
-    screen->last_frame_counter = end_frame_counter;
-}
-
-//
-// scg_screen_log_info implementation
-//
-
-void scg_screen_log_info(scg_screen_t *screen) {
-    scg_log_info("screen has w:%d, h:%d, scale:%d, target fps:%d",
-                 screen->width, screen->height, screen->window_scale,
-                 screen->target_fps);
-}
-
-//
-// scg_screen_close implementation
-//
-
-void scg_screen_close(scg_screen_t *screen) {
-    screen->is_running = false;
-}
-
-//
-// scg_screen_destroy implementation
-//
-
-void scg_screen_destroy(scg_screen_t *screen) {
-    SDL_DestroyTexture(screen->sdl_texture);
-    SDL_DestroyRenderer(screen->sdl_renderer);
-    SDL_DestroyWindow(screen->sdl_window);
-}
-
-//
-// scg_sound_device_new implementation
-//
-
-scg_error_t scg_sound_device_new(scg_sound_device_t *sound_device,
-                                 int target_fps) {
-    SDL_AudioSpec desired, obtained;
-
-    int desired_num_channels = 2;
-    size_t bytes_per_sample = sizeof(int16_t) * desired_num_channels;
-
-    memset(&desired, 0, sizeof(desired));
-    desired.freq = 48000;
-    desired.format = AUDIO_S16LSB;
-    desired.channels = desired_num_channels;
-    desired.samples = desired.freq * bytes_per_sample / target_fps;
-    desired.callback = NULL;
-
-    SDL_AudioDeviceID device_id = SDL_OpenAudioDevice(
-        NULL, 0, &desired, &obtained, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
-    if (device_id == 0) {
-        const char *error_msg = scg__sprintf(
-            "Failed to open audio device. Error %s", SDL_GetError());
-        return scg_error_new(error_msg);
-    }
-
-    if (obtained.format != desired.format) {
-        SDL_CloseAudioDevice(device_id);
-
-        return scg_error_new("Audio device does not support format S16LSB");
-    }
-
-    int obtained_frequency = obtained.freq;
-    int latency_sample_count = obtained_frequency / 15;
-    uint32_t buffer_size = latency_sample_count * bytes_per_sample;
-
-    uint8_t *buffer = calloc(latency_sample_count, bytes_per_sample);
-    if (buffer == NULL) {
-        SDL_CloseAudioDevice(device_id);
-
-        const char *error_msg =
-            scg__sprintf("Failed to allocate memory for sound buffer. bytes=%d",
-                         sound_device->latency_sample_count * bytes_per_sample);
-        return scg_error_new(error_msg);
-    }
-
-    sound_device->device_id = device_id;
-    sound_device->frequency = obtained_frequency;
-    sound_device->num_channels = obtained.channels;
-    sound_device->num_samples = obtained.samples;
-    sound_device->bytes_per_sample = bytes_per_sample;
-    sound_device->latency_sample_count = latency_sample_count;
-    sound_device->buffer_size = buffer_size;
-    sound_device->buffer = buffer;
-    sound_device->num_sounds = 0;
-
-    SDL_PauseAudioDevice(device_id, 0);
-
-    return scg_error_none();
-}
-
-//
-// scg_sound_device_log_info implementation
-//
-
-void scg_sound_device_log_info(scg_sound_device_t *sound_device) {
-    scg_log_info("sound device has id:%d, channels:%d, samples/sec:%d, "
-                 "samples/frame:%d, bytes/sample:%d",
-                 sound_device->device_id, sound_device->num_channels,
-                 sound_device->frequency, sound_device->latency_sample_count,
-                 sound_device->bytes_per_sample);
-}
-
-//
-// scg_sound_device_update implementation
-//
-
-void scg_sound_device_update(scg_sound_device_t *sound_device) {
-    memset(sound_device->buffer, 0, sound_device->buffer_size);
-
-    uint32_t target_queue_bytes = sound_device->buffer_size;
-    uint32_t bytes_to_write =
-        target_queue_bytes - SDL_GetQueuedAudioSize(sound_device->device_id);
-
-    for (int i = 0; i < sound_device->num_sounds; i++) {
-        scg_sound_t *sound = sound_device->sounds[i];
-
-        if (!sound->is_playing) {
-            continue;
-        }
-
-        const uint8_t *current_play_position =
-            sound->buffer + sound->play_offset;
-        const uint32_t remaining_bytes_to_play =
-            sound->length - sound->play_offset;
-
-        if (current_play_position >= sound->end_position) {
-            if (!sound->loop) {
-                sound->is_playing = false;
-            }
-
-            sound->play_offset = 0;
-        } else {
-            uint32_t bytes_to_mix = (bytes_to_write > remaining_bytes_to_play)
-                                        ? remaining_bytes_to_play
-                                        : bytes_to_write;
-
-            SDL_MixAudioFormat(sound_device->buffer, current_play_position,
-                               AUDIO_S16LSB, bytes_to_mix,
-                               SDL_MIX_MAXVOLUME / 2);
-
-            sound->play_offset += bytes_to_mix;
-        }
-    }
-
-    SDL_QueueAudio(sound_device->device_id, sound_device->buffer,
-                   bytes_to_write);
-}
-
-//
-// scg_sound_device_destroy_sounds implementation
-//
-
-void scg_sound_device_destroy(scg_sound_device_t *sound_device) {
-    SDL_PauseAudioDevice(sound_device->device_id, 1);
-    SDL_ClearQueuedAudio(sound_device->device_id);
-
-    for (int i = 0; i < sound_device->num_sounds; i++) {
-        SDL_FreeWAV(sound_device->sounds[i]->buffer);
-    }
-
-    free(sound_device->buffer);
-    SDL_CloseAudioDevice(sound_device->device_id);
-}
-
-//
-// scg_sound_new implementation
-//
-
-scg_error_t scg_sound_new_from_wav(scg_sound_device_t *sound_device,
-                                   scg_sound_t *sound, const char *filepath,
-                                   bool loop) {
-    if (sound_device->num_sounds == SCG_MAX_SOUNDS) {
-        return scg_error_new("Maximum sounds reached");
-    }
-
-    SDL_AudioSpec spec;
-    uint32_t length;
-    uint8_t *buffer;
-
-    if (SDL_LoadWAV(filepath, &spec, &buffer, &length) == NULL) {
-        const char *error_msg = scg__sprintf(
-            "Failed to load WAV file %s. Error %s", filepath, SDL_GetError());
-        return scg_error_new(error_msg);
-    }
-
-    sound->sdl_spec = spec;
-    sound->length = length;
-    sound->buffer = buffer;
-    sound->play_offset = 0;
-    sound->end_position = buffer + length;
-    sound->is_playing = false;
-    sound->loop = loop;
-
-    sound_device->sounds[sound_device->num_sounds++] = sound;
-
-    return scg_error_none();
-}
-
-//
-// scg_sound_play implementation
-//
-
-void scg_sound_play(scg_sound_t *sound) {
-    if (!sound->is_playing) {
-        sound->is_playing = true;
-    }
-}
-
-//
-// scg_sound_get_position implementation
-//
-
-float32_t scg_sound_get_position(scg_sound_t *sound) {
-    if (!sound->is_playing) {
-        return 0.0f;
-    }
-
-    return (float32_t)sound->play_offset / (float32_t)sound->length;
-}
-
-//
-// scg_keyboard_new implementation
-//
-
-void scg_keyboard_new(scg_keyboard_t *keyboard) {
-    keyboard->current_key_states = SDL_GetKeyboardState(NULL);
-    memset(keyboard->previous_key_states, 0,
-           sizeof(uint8_t) * SDL_NUM_SCANCODES);
+    return;
 }
 
 //
@@ -1330,16 +991,558 @@ bool scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
 }
 
 //
-// scg_keyboard_update implementation
+// scg_sound_new_from_wav implementation
 //
 
-void scg_keyboard_update(scg_keyboard_t *keyboard) {
+scg_sound_t *scg_sound_new_from_wav(scg_audio_t *audio, const char *filepath,
+                                    bool loop) {
+    if (audio->num_sounds == SCG__MAX_SOUNDS) {
+        scg_log_error("Maximum sounds reached");
+
+        return NULL;
+    }
+
+    SDL_AudioSpec spec;
+    uint32_t length;
+    uint8_t *buffer;
+
+    if (SDL_LoadWAV(filepath, &spec, &buffer, &length) == NULL) {
+        scg_log_errorf("Failed to load WAV file at %s. %s", filepath,
+                       SDL_GetError());
+
+        return NULL;
+    }
+
+    scg_sound_t *sound = malloc(sizeof(*sound));
+    if (sound == NULL) {
+        scg_log_error("Failed to allocate memory for sound");
+
+        SDL_FreeWAV(buffer);
+        return NULL;
+    }
+
+    sound->sdl_spec = spec;
+    sound->length = length;
+    sound->buffer = buffer;
+    sound->play_offset = 0;
+    sound->end_position = buffer + length;
+    sound->is_playing = false;
+    sound->loop = loop;
+
+    audio->sounds[audio->num_sounds++] = sound;
+
+    return sound;
+}
+
+//
+// scg_sound_play implementation
+//
+
+void scg_sound_play(scg_sound_t *sound) {
+    if (!sound->is_playing) {
+        sound->is_playing = true;
+    }
+
+    return;
+}
+
+//
+// scg_sound_get_position implementation
+//
+
+float32_t scg_sound_get_position(scg_sound_t *sound) {
+    if (!sound->is_playing) {
+        return 0.0f;
+    }
+
+    return (float32_t)sound->play_offset / (float32_t)sound->length;
+}
+
+//
+// scg_config_new_default implementation
+//
+
+scg_config_t scg_config_new_default(void) {
+    return (scg_config_t){
+        .video = {.width = 640,
+                  .height = 480,
+                  .title = "SCG Application",
+                  .scale = 1,
+                  .fullscreen = false,
+                  .vsync = true,
+                  .show_frame_metrics = true},
+        .audio = {.enabled = false, .volume = SCG__MAX_VOLUME / 2}};
+}
+
+//
+// scg_app_initgg implementation
+//
+
+void scg_app_init(scg_app_t *app, scg_config_t config) {
+    // Initialise the SDL library.
+    {
+        uint32_t flags = SDL_INIT_VIDEO;
+        if (config.audio.enabled) {
+            flags |= SDL_INIT_AUDIO;
+        }
+
+        if (SDL_Init(flags) != 0) {
+            scg_log_errorf("Failed to initialise SDL. %s", SDL_GetError());
+
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    scg_image_t *draw_target =
+        scg_image_new(config.video.width, config.video.height);
+    if (draw_target == NULL) {
+        scg_log_error("Failed to create draw target");
+
+        SDL_Quit();
+        exit(EXIT_FAILURE);
+    }
+
+    scg__screen_t *screen =
+        scg__screen_new(draw_target, config.video.title, config.video.scale,
+                        config.video.fullscreen, config.video.vsync);
+    if (screen == NULL) {
+        scg_log_error("Failed to create screen");
+
+        scg_image_free(draw_target);
+        SDL_Quit();
+        exit(EXIT_FAILURE);
+    }
+
+    scg_keyboard_t *keyboard = scg__keyboard_new();
+    if (keyboard == NULL) {
+        scg_log_error("Failed to create keyboard");
+
+        scg__screen_free(screen);
+        scg_image_free(draw_target);
+        SDL_Quit();
+        exit(EXIT_FAILURE);
+    }
+
+    // Audio is not enabled by default, so we must default the sound device to
+    // uninitialised.
+
+    scg_audio_t *audio = NULL;
+    if (config.audio.enabled) {
+        audio = scg__audio_new(screen->target_fps);
+        if (audio == NULL) {
+            scg_log_error("Failed to create sound device");
+
+            free(keyboard);
+            scg__screen_free(screen);
+            scg_image_free(draw_target);
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    // Log some information to stdout.
+    {
+        scg_log_infof("Application '%s' successfuly initialised.\n"
+                      "Width: %d, Height: %d, Target FPS: %d, VSync: %d",
+                      config.video.title, draw_target->width,
+                      draw_target->height, screen->target_fps, screen->vsync);
+        if (config.audio.enabled) {
+            scg_log_infof("Audio successfuly initialised.\n"
+                          "Device ID: %d, Channels: %d, Samples/sec: %d, "
+                          "Samples/frame: %d, Bytes/sample: %d",
+                          audio->device_id, audio->num_channels,
+                          audio->frequency, audio->latency_sample_count,
+                          audio->bytes_per_sample);
+        }
+    }
+
+    app->running = true;
+    app->config = config;
+    app->draw_target = draw_target;
+    app->screen = screen;
+    app->keyboard = keyboard;
+    app->audio = audio;
+    app->delta_time = screen->target_frame_time_secs;
+    app->delta_time_counter = scg_get_performance_counter();
+
+    return;
+}
+
+//
+// scg_app_begin_frame implementation
+//
+
+void scg_app_begin_frame(scg_app_t *app) {
+    // Handle events that need to be polled. This may include
+    // text input, mouse events, and game controller events.
+    {
+        SDL_Event event;
+        SDL_PollEvent(&event);
+
+        switch (event.type) {
+        case SDL_QUIT:
+            app->running = false;
+            break;
+        // Quit the app on ESC key, for convinience.
+        case SDL_KEYDOWN:
+            if (event.key.keysym.sym == SDLK_ESCAPE) {
+                app->running = false;
+                break;
+            }
+        }
+    }
+
+    // Calculate the delta time in seconds per frame.
+    // This is useful for apps that want some quick consistent animation
+    // and don't care about fixed updates.
+    {
+        uint64_t now = scg_get_performance_counter();
+        app->delta_time =
+            scg_get_elapsed_time_secs(now, app->delta_time_counter);
+        app->delta_time_counter = now;
+    }
+
+    return;
+}
+
+//
+// scg_app_end_frame implementation
+//
+
+void scg_app_end_frame(scg_app_t *app) {
+    if (app->config.video.show_frame_metrics) {
+        scg_image_draw_frame_metrics(app->draw_target,
+                                     app->screen->frame_metrics);
+    }
+
+    scg__keyboard_update(app->keyboard);
+
+    if (app->audio != NULL) {
+        scg__audio_update(app->audio);
+    }
+
+    scg__screen_present(app->screen, app->draw_target);
+
+    return;
+}
+
+//
+// scg_app_shutdown implementation
+//
+
+void scg_app_shutdown(scg_app_t *app) {
+    if (app->audio != NULL) {
+        scg__audio_free(app->audio);
+    }
+
+    free(app->keyboard);
+    scg__screen_free(app->screen);
+    scg_image_free(app->draw_target);
+
+    SDL_Quit();
+
+    return;
+}
+
+static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
+    int result = display_mode.refresh_rate;
+
+    if (result == 0) {
+        return SCG__DEFAULT_REFRESH_RATE;
+    }
+
+    return result;
+}
+
+static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
+                                      const char *title, int scale,
+                                      bool fullscreen, bool vsync) {
+    SDL_DisplayMode display_mode;
+    if (SDL_GetDesktopDisplayMode(0, &display_mode) != 0) {
+        scg_log_errorf("Failed to get SDL desktop display mode. %s",
+                       SDL_GetError());
+
+        return NULL;
+    }
+
+    SDL_Window *sdl_window = NULL;
+    SDL_Renderer *sdl_renderer = NULL;
+    SDL_Texture *sdl_texture = NULL;
+
+    int w = draw_target->width;
+    int h = draw_target->height;
+
+    // Setup the SDL window.
+    {
+        sdl_window = SDL_CreateWindow(
+            title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w * scale,
+            h * scale, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+        if (sdl_window == NULL) {
+            scg_log_errorf("Failed to create SDL Window. %s", SDL_GetError());
+
+            return NULL;
+        }
+
+        if (fullscreen) {
+            SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+        }
+    }
+
+    // Setup the SDL renderer.
+    {
+        uint32_t sdl_renderer_flags = SDL_RENDERER_ACCELERATED;
+        if (vsync) {
+            sdl_renderer_flags |= SDL_RENDERER_PRESENTVSYNC;
+            SDL_SetHint(SDL_HINT_RENDER_VSYNC, "1");
+        }
+
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
+
+        sdl_renderer = SDL_CreateRenderer(sdl_window, -1, sdl_renderer_flags);
+        if (sdl_renderer == NULL) {
+            scg_log_errorf("Failed to create SDL Renderer. %s", SDL_GetError());
+
+            SDL_DestroyWindow(sdl_window);
+            return NULL;
+        }
+
+        SDL_RenderSetLogicalSize(sdl_renderer, w, h);
+    }
+
+    // Setup the SDL texture which will represent our screen.
+    {
+        sdl_texture = SDL_CreateTexture(sdl_renderer, SCG__IMAGE_PIXEL_FORMAT,
+                                        SDL_TEXTUREACCESS_STREAMING, w, h);
+        if (sdl_texture == NULL) {
+            scg_log_errorf("Failed to create SDL Texture. %s", SDL_GetError());
+
+            SDL_DestroyRenderer(sdl_renderer);
+            SDL_DestroyWindow(sdl_window);
+            return NULL;
+        }
+    }
+
+    scg__screen_t *screen = malloc(sizeof(*screen));
+    if (screen == NULL) {
+        scg_log_error("Failed to allocate memory for screen");
+
+        SDL_DestroyTexture(sdl_texture);
+        SDL_DestroyRenderer(sdl_renderer);
+        SDL_DestroyWindow(sdl_window);
+        return NULL;
+    }
+
+    screen->target_fps = scg__get_monitor_refresh_rate(display_mode);
+    screen->target_frame_time_secs = 1.0 / (float64_t)screen->target_fps;
+    screen->last_frame_counter = scg_get_performance_counter();
+    screen->sdl_window = sdl_window;
+    screen->sdl_renderer = sdl_renderer;
+    screen->sdl_texture = sdl_texture;
+    screen->frame_metrics_update_counter = scg_get_performance_counter();
+    screen->frame_metrics.target_fps = screen->target_fps;
+    screen->vsync = vsync;
+
+    return screen;
+}
+
+static void scg__screen_present(scg__screen_t *screen,
+                                scg_image_t *draw_target) {
+    // Wait until we have reached the target amount of time per frame (e.g 60hz,
+    // ~16ms). Spinning in a while loop seems to be the most accurate way to do
+    // this, as trying to use SDL_Delay (sleeping) is dependant on other
+    // factors.
+    if (screen->vsync) {
+        float64_t target_secs = screen->target_frame_time_secs;
+        float64_t elapsed_time_secs = scg_get_elapsed_time_secs(
+            scg_get_performance_counter(), screen->last_frame_counter);
+
+        if (elapsed_time_secs < target_secs) {
+            while (elapsed_time_secs < target_secs) {
+                elapsed_time_secs = scg_get_elapsed_time_secs(
+                    scg_get_performance_counter(), screen->last_frame_counter);
+            }
+        }
+    }
+
+    uint64_t end_frame_counter = scg_get_performance_counter();
+
+    SDL_UpdateTexture(screen->sdl_texture, NULL, draw_target->pixels,
+                      draw_target->pitch);
+    SDL_RenderClear(screen->sdl_renderer);
+    SDL_RenderCopy(screen->sdl_renderer, screen->sdl_texture, NULL, NULL);
+    SDL_RenderPresent(screen->sdl_renderer);
+
+    // Update the frame metrics every second.
+    // TODO: Instead of capturing every second, average the metrics...
+    {
+        float64_t elapsed_time_secs =
+            scg_get_elapsed_time_secs(scg_get_performance_counter(),
+                                      screen->frame_metrics_update_counter);
+        if (elapsed_time_secs >= 1.0f) {
+            screen->frame_metrics.frame_time_secs = scg_get_elapsed_time_secs(
+                end_frame_counter, screen->last_frame_counter);
+            screen->frame_metrics.frame_time_millisecs =
+                scg_get_elapsed_time_millisecs(end_frame_counter,
+                                               screen->last_frame_counter);
+            screen->frame_metrics.fps =
+                (float64_t)scg_get_performance_frequency() /
+                (float64_t)(end_frame_counter - screen->last_frame_counter);
+
+            screen->frame_metrics_update_counter =
+                scg_get_performance_counter();
+        }
+    }
+
+    screen->last_frame_counter = end_frame_counter;
+}
+
+static void scg__screen_free(scg__screen_t *screen) {
+    SDL_DestroyTexture(screen->sdl_texture);
+    SDL_DestroyRenderer(screen->sdl_renderer);
+    SDL_DestroyWindow(screen->sdl_window);
+    free(screen);
+}
+
+static scg_keyboard_t *scg__keyboard_new(void) {
+    scg_keyboard_t *keyboard = malloc(sizeof(*keyboard));
+    if (keyboard == NULL) {
+        scg_log_error("Failed to allocate memory for keyboard");
+
+        return NULL;
+    }
+
+    keyboard->current_key_states = SDL_GetKeyboardState(NULL);
+    memset(keyboard->previous_key_states, 0,
+           sizeof(uint8_t) * SDL_NUM_SCANCODES);
+
+    return keyboard;
+}
+
+static void scg__keyboard_update(scg_keyboard_t *keyboard) {
     memcpy(keyboard->previous_key_states, keyboard->current_key_states,
            sizeof(uint8_t) * SDL_NUM_SCANCODES);
 }
 
+static scg_audio_t *scg__audio_new(int target_fps) {
+    SDL_AudioSpec desired, obtained;
+
+    int desired_num_channels = 2;
+    size_t bytes_per_sample = sizeof(int16_t) * desired_num_channels;
+
+    memset(&desired, 0, sizeof(desired));
+    desired.freq = 48000;
+    desired.format = AUDIO_S16LSB;
+    desired.channels = desired_num_channels;
+    desired.samples = desired.freq * bytes_per_sample / target_fps;
+    desired.callback = NULL;
+
+    SDL_AudioDeviceID device_id = SDL_OpenAudioDevice(
+        NULL, 0, &desired, &obtained, SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+    if (device_id == 0) {
+        scg_log_errorf("Failed to open SDL audio device. %s", SDL_GetError());
+
+        return NULL;
+    }
+
+    if (obtained.format != desired.format) {
+        scg_log_error("Audio device does not support format S16LSB");
+
+        SDL_CloseAudioDevice(device_id);
+        return NULL;
+    }
+
+    int obtained_frequency = obtained.freq;
+    int latency_sample_count = obtained_frequency / 15;
+    uint32_t buffer_size = latency_sample_count * bytes_per_sample;
+
+    uint8_t *buffer = calloc(latency_sample_count, bytes_per_sample);
+    if (buffer == NULL) {
+        scg_log_errorf("Failed to allocate memory for sound buffer. bytes=%zu",
+                       latency_sample_count * bytes_per_sample);
+
+        SDL_CloseAudioDevice(device_id);
+        return NULL;
+    }
+
+    scg_audio_t *audio = malloc(sizeof(*audio));
+    if (audio == NULL) {
+        scg_log_error("Failed to allocate memory for audio");
+
+        free(buffer);
+        SDL_CloseAudioDevice(device_id);
+        return NULL;
+    }
+
+    audio->device_id = device_id;
+    audio->frequency = obtained_frequency;
+    audio->num_channels = obtained.channels;
+    audio->num_samples = obtained.samples;
+    audio->bytes_per_sample = bytes_per_sample;
+    audio->latency_sample_count = latency_sample_count;
+    audio->buffer_size = buffer_size;
+    audio->buffer = buffer;
+    audio->num_sounds = 0;
+
+    SDL_PauseAudioDevice(device_id, 0);
+
+    return audio;
+}
+
+static void scg__audio_update(scg_audio_t *audio) {
+    memset(audio->buffer, 0, audio->buffer_size);
+
+    uint32_t target_queue_bytes = audio->buffer_size;
+    uint32_t bytes_to_write =
+        target_queue_bytes - SDL_GetQueuedAudioSize(audio->device_id);
+
+    for (int i = 0; i < audio->num_sounds; i++) {
+        scg_sound_t *sound = audio->sounds[i];
+
+        if (!sound->is_playing) {
+            continue;
+        }
+
+        const uint8_t *current_play_position =
+            sound->buffer + sound->play_offset;
+        const uint32_t remaining_bytes_to_play =
+            sound->length - sound->play_offset;
+
+        if (current_play_position >= sound->end_position) {
+            if (!sound->loop) {
+                sound->is_playing = false;
+            }
+
+            sound->play_offset = 0;
+        } else {
+            uint32_t bytes_to_mix = (bytes_to_write > remaining_bytes_to_play)
+                                        ? remaining_bytes_to_play
+                                        : bytes_to_write;
+
+            SDL_MixAudioFormat(audio->buffer, current_play_position,
+                               AUDIO_S16LSB, bytes_to_mix, SCG__MAX_VOLUME / 2);
+
+            sound->play_offset += bytes_to_mix;
+        }
+    }
+
+    SDL_QueueAudio(audio->device_id, audio->buffer, bytes_to_write);
+}
+
+static void scg__audio_free(scg_audio_t *audio) {
+    SDL_PauseAudioDevice(audio->device_id, 1);
+    SDL_ClearQueuedAudio(audio->device_id);
+
+    for (int i = 0; i < audio->num_sounds; i++) {
+        SDL_FreeWAV(audio->sounds[i]->buffer);
+    }
+
+    free(audio->buffer);
+    SDL_CloseAudioDevice(audio->device_id);
+
+    free(audio);
+}
+
 // Bitmap fonts taken from https://github.com/dhepper/font8x8.
-const char scg__font8x8[128][8] = {
+static const char scg__font8x8[128][8] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},       // U+0000 (nul)
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},       // U+0001
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},       // U+0002
@@ -1470,7 +1673,7 @@ const char scg__font8x8[128][8] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}        // U+007F
 };
 
-const char scg__font8x8_hiragana[96][8] = {
+static const char scg__font8x8_hiragana[96][8] = {
     {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}, // U+3040
     {0x04, 0x3F, 0x04, 0x3C, 0x56, 0x4D, 0x26, 0x00}, // U+3041 (Hiragana a)
     {0x04, 0x3F, 0x04, 0x3C, 0x56, 0x4D, 0x26, 0x00}, // U+3042 (Hiragana A)

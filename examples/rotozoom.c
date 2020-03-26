@@ -4,18 +4,14 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
-#define WINDOW_SCALE 1
-#define FULLSCREEN false
-#define SCREENSHOT_FILEPATH "screenshots/rotozoom.bmp"
+static void draw(scg_image_t *draw_target, scg_image_t *src_image,
+                 float32_t angle, float32_t scale) {
+    scg_image_clear(draw_target, SCG_COLOR_BLACK);
 
-static void draw_image_with_rotozoom(scg_image_t *back_buffer, scg_image_t *src,
-                                     float32_t angle, float32_t scale) {
-    int w = back_buffer->width;
-    int h = back_buffer->height;
-    const int src_w = src->width;
-    const int src_h = src->height;
+    int w = draw_target->width;
+    int h = draw_target->height;
+    const int src_w = src_image->width;
+    const int src_h = src_image->height;
 
     float32_t s = sinf(angle);
     float32_t c = cosf(angle);
@@ -34,83 +30,43 @@ static void draw_image_with_rotozoom(scg_image_t *back_buffer, scg_image_t *src,
             }
 
             int src_i = scg_pixel_index_from_xy(src_x, src_y, src_w);
-            scg_pixel_t color = scg_pixel_new_uint32(src->pixels[src_i]);
+            scg_pixel_t color = scg_pixel_new_uint32(src_image->pixels[src_i]);
 
             int dest_i = scg_pixel_index_from_xy(x, y, w);
-            back_buffer->pixels[dest_i] = color.packed;
+            draw_target->pixels[dest_i] = color.packed;
         }
     }
 }
 
 int main(void) {
-    scg_error_t err = scg_init();
-    if (!err.none) {
-        scg_log_error("Failed to initialise scg. Error: %s", err.message);
+    scg_config_t config = scg_config_new_default();
+    config.video.title = "SCG Example: Rotozoom";
+
+    scg_app_t app;
+    scg_app_init(&app, config);
+
+    scg_image_t *src_image = scg_image_new_from_bmp("assets/2ndreal.bmp");
+    if (src_image == NULL) {
         return -1;
     }
 
-    scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
-    if (!err.none) {
-        scg_log_error("Failed to create back buffer. Error: %s", err.message);
-        return -1;
-    }
+    uint64_t start_time = scg_get_performance_counter();
 
-    scg_screen_t screen;
-    err = scg_screen_new(&screen, "SCG Example: Rotozoom", &back_buffer,
-                         WINDOW_SCALE, FULLSCREEN);
-    if (!err.none) {
-        scg_log_error("Failed to create screen. Error: %s", err.message);
-        return -1;
-    }
-    scg_screen_log_info(&screen);
+    while (app.running) {
+        scg_app_begin_frame(&app);
 
-    scg_keyboard_t keyboard;
-    scg_keyboard_new(&keyboard);
-
-    scg_image_t image;
-    err = scg_image_new_from_bmp(&image, "assets/2ndreal.bmp");
-    if (!err.none) {
-        scg_log_error("Failed to create image. Error: %s", err.message);
-        return -1;
-    }
-
-    float32_t elapsed_time = 0.0f;
-    scg_pixel_t clear_color = SCG_COLOR_BLACK;
-
-    while (scg_screen_is_running(&screen)) {
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
-            scg_screen_close(&screen);
-        }
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
-            scg_error_t err =
-                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
-            if (!err.none) {
-                scg_log_warn("Failed to save screenshot to %s. Error: %s",
-                             SCREENSHOT_FILEPATH, err.message);
-            }
-
-            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
-        }
-
-        elapsed_time += 1.0f * screen.target_frame_time_secs;
-
-        scg_image_clear(&back_buffer, clear_color);
+        float32_t elapsed_time = scg_get_elapsed_time_secs(
+            scg_get_performance_counter(), start_time);
 
         float32_t scale = 0.5f + sinf(elapsed_time * 0.5f) * 2.0f;
         float32_t angle = elapsed_time;
-        draw_image_with_rotozoom(&back_buffer, &image, angle, scale);
+        draw(app.draw_target, src_image, angle, scale);
 
-        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
-
-        scg_keyboard_update(&keyboard);
-        scg_screen_present(&screen);
+        scg_app_end_frame(&app);
     }
 
-    scg_image_destroy(&image);
-    scg_screen_destroy(&screen);
-    scg_image_destroy(&back_buffer);
-    scg_quit();
+    scg_image_free(src_image);
+    scg_app_shutdown(&app);
 
     return 0;
 }

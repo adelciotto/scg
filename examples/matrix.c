@@ -2,17 +2,8 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
-#define WINDOW_SCALE 1
-#define FULLSCREEN false
-#define SCREENSHOT_FILEPATH "screenshots/matrix.bmp"
-
 #define CODE_STRING_CHAR_SIZE SCG_FONT_SIZE
 #define CODE_STRING_MAX_CHARS 90
-#define MATRIX_NUM_COLUMNS SCREEN_WIDTH / CODE_STRING_CHAR_SIZE
-#define MATRIX_NUM_ROWS SCREEN_HEIGHT / CODE_STRING_CHAR_SIZE
-#define MATRIX_NUM_CODE_STRINGS MATRIX_NUM_COLUMNS * 2
 
 typedef struct code_string_t {
     float32_t x;
@@ -23,7 +14,10 @@ typedef struct code_string_t {
 } code_string_t;
 
 typedef struct matrix_t {
-    code_string_t code_strings[MATRIX_NUM_CODE_STRINGS];
+    int num_columns;
+    int num_rows;
+    int num_code_strings;
+    code_string_t *code_strings;
 } matrix_t;
 
 static inline wchar_t random_wchar(void) {
@@ -36,9 +30,8 @@ static inline wchar_t random_wchar(void) {
     return (wchar_t)(rand() % (0x3094 - 0x3041) + 0x3041);
 }
 
-static void init_code_string(code_string_t *code_string) {
-    float32_t x =
-        (float32_t)((rand() % MATRIX_NUM_COLUMNS) * CODE_STRING_CHAR_SIZE);
+static void init_code_string(code_string_t *code_string, int num_columns) {
+    float32_t x = (float32_t)((rand() % num_columns) * CODE_STRING_CHAR_SIZE);
     float32_t y = -10.0f;
     float32_t speed = (float32_t)((rand() % 40) + 5);
     int num_chars = (rand() % (CODE_STRING_MAX_CHARS - 10)) + 10;
@@ -51,16 +44,33 @@ static void init_code_string(code_string_t *code_string) {
     code_string->y = y;
     code_string->speed = speed;
     code_string->num_chars = num_chars;
+
+    return;
 }
 
-static void init_matrix(matrix_t *matrix) {
-    for (int i = 0; i < MATRIX_NUM_CODE_STRINGS; i++) {
-        init_code_string(&matrix->code_strings[i]);
+static void matrix_init(matrix_t *matrix, int num_columns, int num_rows) {
+    int num_code_strings = num_columns * 2;
+    code_string_t *code_strings =
+        malloc(num_code_strings * sizeof(*code_strings));
+
+    for (int i = 0; i < num_code_strings; i++) {
+        init_code_string(&code_strings[i], num_columns);
     }
+
+    matrix->num_columns = num_columns;
+    matrix->num_rows = num_rows;
+    matrix->num_code_strings = num_code_strings;
+    matrix->code_strings = code_strings;
+
+    return;
 }
 
-static void update_matrix(matrix_t *matrix, float32_t delta_time) {
-    for (int i = 0; i < MATRIX_NUM_CODE_STRINGS; i++) {
+static void update(matrix_t *matrix, scg_app_t *app) {
+    int num_code_strings = matrix->num_code_strings;
+    int h = app->draw_target->height;
+    float32_t delta_time = app->delta_time;
+
+    for (int i = 0; i < num_code_strings; i++) {
         code_string_t *code_string = &matrix->code_strings[i];
 
         code_string->y += code_string->speed * delta_time;
@@ -69,10 +79,12 @@ static void update_matrix(matrix_t *matrix, float32_t delta_time) {
         float32_t code_string_end_y =
             code_string->y - (float32_t)(CODE_STRING_CHAR_SIZE * num_chars);
 
-        if (code_string_end_y >= SCREEN_HEIGHT) {
-            init_code_string(code_string);
+        if (code_string_end_y >= h) {
+            init_code_string(code_string, matrix->num_columns);
         }
     }
+
+    return;
 }
 
 static inline scg_pixel_t shade_pixel(scg_pixel_t color, float32_t shade) {
@@ -83,8 +95,12 @@ static inline scg_pixel_t shade_pixel(scg_pixel_t color, float32_t shade) {
     return scg_pixel_new_rgb(r, g, b);
 }
 
-static void draw_matrix(scg_image_t *back_buffer, matrix_t *matrix) {
-    for (int i = 0; i < MATRIX_NUM_CODE_STRINGS; i++) {
+static void draw(scg_image_t *draw_target, matrix_t *matrix) {
+    scg_image_clear(draw_target, SCG_COLOR_BLACK);
+
+    int num_code_strings = matrix->num_code_strings;
+
+    for (int i = 0; i < num_code_strings; i++) {
         code_string_t *code_string = &matrix->code_strings[i];
         int num_chars = code_string->num_chars;
         float32_t speed = code_string->speed;
@@ -107,7 +123,7 @@ static void draw_matrix(scg_image_t *back_buffer, matrix_t *matrix) {
                 abs(j - (int)(code_string->y / CODE_STRING_CHAR_SIZE)) %
                 code_string->num_chars;
             int y = (int)(code_string->y - (CODE_STRING_CHAR_SIZE * j));
-            scg_image_draw_wchar(back_buffer, code_string->chars[char_i],
+            scg_image_draw_wchar(draw_target, code_string->chars[char_i],
                                  (int)code_string->x, (int)y, color);
 
             if (rand() % 1000 < 5) {
@@ -115,78 +131,36 @@ static void draw_matrix(scg_image_t *back_buffer, matrix_t *matrix) {
             }
         }
     }
+
+    return;
 }
 
 int main(void) {
-    scg_error_t err = scg_init();
-    if (!err.none) {
-        scg_log_error("Failed to initialise scg. Error: %s", err.message);
-        return -1;
-    }
+    scg_config_t config = scg_config_new_default();
+    config.video.title = "SCG Example: Matrix";
 
-    scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
-    if (!err.none) {
-        scg_log_error("Failed to create back buffer. Error: %s", err.message);
-        return -1;
-    }
-
-    scg_screen_t screen;
-    err = scg_screen_new(&screen, "SCG Example: Matrix", &back_buffer,
-                         WINDOW_SCALE, FULLSCREEN);
-    if (!err.none) {
-        scg_log_error("Failed to create screen. Error: %s", err.message);
-        return -1;
-    }
-    scg_screen_log_info(&screen);
-
-    scg_keyboard_t keyboard;
-    scg_keyboard_new(&keyboard);
+    scg_app_t app;
+    scg_app_init(&app, config);
 
     srand(scg_get_performance_counter());
 
+    int num_columns = app.draw_target->width / CODE_STRING_CHAR_SIZE;
+    int num_rows = app.draw_target->height / CODE_STRING_CHAR_SIZE;
     matrix_t matrix;
-    init_matrix(&matrix);
+    matrix_init(&matrix, num_columns, num_rows);
 
-    scg_pixel_t clear_color = SCG_COLOR_BLACK;
+    while (app.running) {
+        scg_app_begin_frame(&app);
 
-    uint64_t delta_time_counter = scg_get_performance_counter();
+        update(&matrix, &app);
 
-    while (scg_screen_is_running(&screen)) {
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
-            scg_screen_close(&screen);
-        }
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
-            scg_error_t err =
-                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
-            if (!err.none) {
-                scg_log_warn("Failed to save screenshot to %s. Error: %s",
-                             SCREENSHOT_FILEPATH, err.message);
-            }
+        draw(app.draw_target, &matrix);
 
-            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
-        }
-
-        uint64_t now = scg_get_performance_counter();
-        float32_t delta_time =
-            scg_get_elapsed_time_secs(now, delta_time_counter);
-        delta_time_counter = now;
-
-        update_matrix(&matrix, delta_time);
-
-        scg_image_clear(&back_buffer, clear_color);
-
-        draw_matrix(&back_buffer, &matrix);
-
-        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
-
-        scg_keyboard_update(&keyboard);
-        scg_screen_present(&screen);
+        scg_app_end_frame(&app);
     }
 
-    scg_screen_destroy(&screen);
-    scg_image_destroy(&back_buffer);
-    scg_quit();
+    free(matrix.code_strings);
+    scg_app_shutdown(&app);
 
     return 0;
 }

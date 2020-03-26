@@ -4,12 +4,6 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 240
-#define WINDOW_SCALE 2
-#define FULLSCREEN false
-#define SCREENSHOT_FILEPATH "screenshots/metablobs.bmp"
-
 #define NUM_BLOBS 3
 #define METABLOBS_CONST_A 300.0f
 #define METABLOBS_CONST_B 1024.0f
@@ -43,7 +37,7 @@ static void lissajous_get_point(lissajous_t lissajous, float32_t *out_x,
     *out_y = lissajous.scale_y * sinf(lissajous.b * t);
 }
 
-static void init_metablobs(metablobs_t *metablobs, float32_t const_a,
+static void metablobs_init(metablobs_t *metablobs, float32_t const_a,
                            float32_t const_b) {
     blob_t *blobs = metablobs->blobs;
 
@@ -66,7 +60,7 @@ static void init_metablobs(metablobs_t *metablobs, float32_t const_a,
     metablobs->const_b = const_b;
 }
 
-static void update_metablobs(metablobs_t *metablobs, float32_t t) {
+static void update(metablobs_t *metablobs, float32_t t) {
     for (int i = 0; i < NUM_BLOBS; i++) {
         blob_t *blob = &metablobs->blobs[i];
         lissajous_get_point(blob->lissajous, &blob->x, &blob->y,
@@ -74,15 +68,20 @@ static void update_metablobs(metablobs_t *metablobs, float32_t t) {
     }
 }
 
-static void draw_metablobs(scg_image_t *back_buffer, metablobs_t *metablobs) {
-    const float32_t origin_x = (float32_t)SCREEN_WIDTH / 2.0f;
-    const float32_t origin_y = (float32_t)SCREEN_HEIGHT / 2.0f;
+static void draw(scg_image_t *draw_target, metablobs_t *metablobs) {
+    scg_image_clear(draw_target, SCG_COLOR_WHITE);
+
+    int w = draw_target->width;
+    int h = draw_target->height;
+
+    const float32_t origin_x = (float32_t)w / 2.0f;
+    const float32_t origin_y = (float32_t)h / 2.0f;
     blob_t *blobs = metablobs->blobs;
     float32_t const_a = metablobs->const_a;
     float32_t const_b = metablobs->const_b;
 
-    for (int y = 0; y < SCREEN_HEIGHT; y++) {
-        for (int x = 0; x < SCREEN_WIDTH; x++) {
+    for (int y = 0; y < h; y++) {
+        for (int x = 0; x < w; x++) {
             float32_t distance_product = 1.0f;
 
             for (int i = 0; i < NUM_BLOBS; i++) {
@@ -97,81 +96,40 @@ static void draw_metablobs(scg_image_t *back_buffer, metablobs_t *metablobs) {
             uint8_t clamped = 255 - (uint8_t)scg_clamp_float32(result, 0, 255);
             scg_pixel_t color = scg_pixel_new_rgb(clamped, clamped, clamped);
 
-            int i = scg_pixel_index_from_xy(x, y, SCREEN_WIDTH);
-            back_buffer->pixels[i] = color.packed;
+            int i = scg_pixel_index_from_xy(x, y, w);
+            draw_target->pixels[i] = color.packed;
         }
     }
 }
 
 int main(void) {
-    scg_error_t err = scg_init();
-    if (!err.none) {
-        scg_log_error("Failed to initialise scg. Error: %s", err.message);
-        return -1;
-    }
+    scg_config_t config = scg_config_new_default();
+    config.video.title = "SCG Example: Metablobs";
+    config.video.width = 320;
+    config.video.height = 240;
+    config.video.scale = 2;
 
-    scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
-    if (!err.none) {
-        scg_log_error("Failed to create back buffer. Error: %s", err.message);
-        return -1;
-    }
-
-    scg_screen_t screen;
-    err = scg_screen_new(&screen, "SCG Example: Metablobs", &back_buffer,
-                         WINDOW_SCALE, FULLSCREEN);
-    if (!err.none) {
-        scg_log_error("Failed to create screen. Error: %s", err.message);
-        return -1;
-    }
-    scg_screen_log_info(&screen);
-
-    scg_keyboard_t keyboard;
-    scg_keyboard_new(&keyboard);
+    scg_app_t app;
+    scg_app_init(&app, config);
 
     metablobs_t metablobs;
-    init_metablobs(&metablobs, METABLOBS_CONST_A, METABLOBS_CONST_B);
+    metablobs_init(&metablobs, METABLOBS_CONST_A, METABLOBS_CONST_B);
 
-    uint64_t delta_time_counter = scg_get_performance_counter();
-    float32_t t = 0.0f;
-    scg_pixel_t clear_color = SCG_COLOR_WHITE;
+    uint64_t start_time = scg_get_performance_counter();
 
-    while (scg_screen_is_running(&screen)) {
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
-            scg_screen_close(&screen);
-        }
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
-            scg_error_t err =
-                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
-            if (!err.none) {
-                scg_log_warn("Failed to save screenshot to %s. Error: %s",
-                             SCREENSHOT_FILEPATH, err.message);
-            }
+    while (app.running) {
+        scg_app_begin_frame(&app);
 
-            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
-        }
+        float32_t elapsed_time = scg_get_elapsed_time_secs(
+            scg_get_performance_counter(), start_time);
+        update(&metablobs, elapsed_time);
 
-        uint64_t now = scg_get_performance_counter();
-        float32_t delta_time =
-            scg_get_elapsed_time_secs(now, delta_time_counter);
-        delta_time_counter = now;
+        draw(app.draw_target, &metablobs);
 
-        t += 1.0f * delta_time;
-        update_metablobs(&metablobs, t);
-
-        scg_image_clear(&back_buffer, clear_color);
-
-        draw_metablobs(&back_buffer, &metablobs);
-
-        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
-
-        scg_keyboard_update(&keyboard);
-        scg_screen_present(&screen);
+        scg_app_end_frame(&app);
     }
 
-    scg_screen_destroy(&screen);
-    scg_image_destroy(&back_buffer);
-    scg_quit();
+    scg_app_shutdown(&app);
 
     return 0;
 }

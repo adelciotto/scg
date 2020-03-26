@@ -2,12 +2,6 @@
 #define SCG_IMPLEMENTATION
 #include "../scg.h"
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 480
-#define WINDOW_SCALE 1
-#define FULLSCREEN false
-#define SCREENSHOT_FILEPATH "screenshots/plasma.bmp"
-
 #define PLASMA_BUFFER_WIDTH 128
 #define PLASMA_BUFFER_HEIGHT 128
 #define PLASMA_SCALE SCG_PI * 4.0f
@@ -48,80 +42,47 @@ static void draw_plasma(scg_image_t *plasma_buffer, float32_t t) {
     }
 }
 
+static void draw(scg_image_t *draw_target, scg_image_t *plasma_buffer,
+                 float32_t elapsed_time) {
+    scg_image_clear(draw_target, SCG_COLOR_WHITE);
+
+    int w = draw_target->width;
+    int h = draw_target->height;
+    int x = w / 2 - PLASMA_BUFFER_WIDTH;
+    int y = h / 2 - PLASMA_BUFFER_HEIGHT;
+    scg_image_draw_image_transform(draw_target, plasma_buffer, x, y,
+                                   elapsed_time, 2.0f, 2.0f);
+}
+
 int main(void) {
-    scg_error_t err = scg_init();
-    if (!err.none) {
-        scg_log_error("Failed to initialise scg. Error: %s", err.message);
+    scg_config_t config = scg_config_new_default();
+    config.video.title = "SCG Example: Plasma";
+
+    scg_app_t app;
+    scg_app_init(&app, config);
+
+    scg_image_t *plasma_buffer =
+        scg_image_new(PLASMA_BUFFER_WIDTH, PLASMA_BUFFER_HEIGHT);
+    if (plasma_buffer == NULL) {
         return -1;
     }
 
-    scg_image_t back_buffer;
-    err = scg_image_new(&back_buffer, SCREEN_WIDTH, SCREEN_HEIGHT);
-    if (!err.none) {
-        scg_log_error("Failed to create back buffer. Error: %s", err.message);
-        return -1;
+    uint64_t start_time = scg_get_performance_counter();
+
+    while (app.running) {
+        scg_app_begin_frame(&app);
+
+        float32_t elapsed_time = scg_get_elapsed_time_secs(
+            scg_get_performance_counter(), start_time);
+
+        draw_plasma(plasma_buffer, elapsed_time);
+        draw(app.draw_target, plasma_buffer, elapsed_time);
+
+        scg_app_end_frame(&app);
     }
 
-    scg_screen_t screen;
-    err = scg_screen_new(&screen, "SCG Example: Plasma", &back_buffer,
-                         WINDOW_SCALE, FULLSCREEN);
-    if (!err.none) {
-        scg_log_error("Failed to create screen. Error: %s", err.message);
-        return -1;
-    }
-    scg_screen_log_info(&screen);
-
-    scg_image_t plasma_buffer;
-    err = scg_image_new(&plasma_buffer, PLASMA_BUFFER_WIDTH,
-                        PLASMA_BUFFER_HEIGHT);
-    if (!err.none) {
-        scg_log_error("Failed to create plasma buffer image. Error: %s",
-                      err.message);
-        return -1;
-    }
-
-    scg_keyboard_t keyboard;
-    scg_keyboard_new(&keyboard);
-
-    scg_pixel_t clear_color = SCG_COLOR_WHITE;
-    float32_t elapsed_time = 0.0f;
-
-    while (scg_screen_is_running(&screen)) {
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_ESCAPE)) {
-            scg_screen_close(&screen);
-        }
-        if (scg_keyboard_is_key_triggered(&keyboard, SCG_KEY_C)) {
-            scg_error_t err =
-                scg_image_save_to_bmp(&back_buffer, SCREENSHOT_FILEPATH);
-            if (!err.none) {
-                scg_log_warn("Failed to save screenshot to %s. Error: %s",
-                             SCREENSHOT_FILEPATH, err.message);
-            }
-
-            scg_log_info("Screenshot saved to %s", SCREENSHOT_FILEPATH);
-        }
-
-        elapsed_time += 0.6f * screen.target_frame_time_secs;
-
-        draw_plasma(&plasma_buffer, elapsed_time);
-
-        scg_image_clear(&back_buffer, clear_color);
-
-        int x = SCREEN_WIDTH / 2 - PLASMA_BUFFER_WIDTH;
-        int y = SCREEN_HEIGHT / 2 - PLASMA_BUFFER_HEIGHT;
-        scg_image_draw_image_transform(&back_buffer, &plasma_buffer, x, y,
-                                       elapsed_time, 2.0f, 2.0f);
-
-        scg_image_draw_frame_metrics(&back_buffer, screen.frame_metrics);
-
-        scg_keyboard_update(&keyboard);
-        scg_screen_present(&screen);
-    }
-
-    scg_image_destroy(&plasma_buffer);
-    scg_screen_destroy(&screen);
-    scg_image_destroy(&back_buffer);
-    scg_quit();
+    scg_image_free(plasma_buffer);
+    scg_app_shutdown(&app);
 
     return 0;
 }

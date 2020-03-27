@@ -139,9 +139,12 @@ extern void scg_image_set_pixel(scg_image_t *image, int x, int y,
 extern void scg_image_clear(scg_image_t *image, scg_pixel_t color);
 extern void scg_image_draw_image(scg_image_t *dest, scg_image_t *src, int x,
                                  int y);
-extern void scg_image_draw_image_transform(scg_image_t *dest, scg_image_t *src,
-                                           int x, int y, float32_t angle,
-                                           float32_t sx, float32_t sy);
+extern void scg_image_draw_image_rotate(scg_image_t *image, scg_image_t *src,
+                                        int x, int y, float32_t angle);
+extern void scg_image_draw_image_rotate_scale(scg_image_t *dest,
+                                              scg_image_t *src, int x, int y,
+                                              float32_t angle, float32_t sx,
+                                              float32_t sy);
 extern void scg_image_draw_line(scg_image_t *image, int x0, int y0, int x1,
                                 int y1, scg_pixel_t color);
 extern void scg_image_draw_rect(scg_image_t *image, int x, int y, int w, int h,
@@ -611,12 +614,70 @@ void scg_image_draw_image(scg_image_t *dest, scg_image_t *src, int x, int y) {
 }
 
 //
-// scg_image_draw_image_transform implementation
+// scg_image_draw_image_rotate implementation
 //
 
-void scg_image_draw_image_transform(scg_image_t *dest, scg_image_t *src, int x,
-                                    int y, float32_t angle, float32_t sx,
-                                    float32_t sy) {
+void scg_image_draw_image_rotate(scg_image_t *dest, scg_image_t *src, int x,
+                                 int y, float32_t angle) {
+    float32_t src_w = src->width;
+    float32_t src_h = src->height;
+    float32_t origin_x = src_w * 0.5f;
+    float32_t origin_y = src_h * 0.5f;
+    float32_t sin_theta = sinf(-angle);
+    float32_t cos_theta = cosf(-angle);
+
+    float32_t a = src_w * cos_theta;
+    float32_t b = src_h * cos_theta;
+    float32_t c = src_w * sin_theta;
+    float32_t d = src_h * sin_theta;
+    float32_t e = -src_w * cos_theta;
+    float32_t f = -src_w * sin_theta;
+    int x0 = (int)(e + d);
+    int y0 = (int)(f - b);
+    int x1 = (int)(a + d);
+    int y1 = (int)(c - b);
+    int x2 = (int)(a - d);
+    int y2 = (int)(c + b);
+    int x3 = (int)(e - d);
+    int y3 = (int)(f + b);
+
+    int minx =
+        scg_min_int(0, scg_min_int(scg_min_int(x0, scg_min_int(x1, x2)), x3));
+    int miny =
+        scg_min_int(0, scg_min_int(scg_min_int(y0, scg_min_int(y1, y2)), y3));
+    int maxx = scg_max_int(x0, scg_max_int(x1, scg_max_int(x2, x3)));
+    int maxy = scg_max_int(y0, scg_max_int(y1, scg_max_int(y2, y3)));
+
+    // TODO: Try a pixel subsampling approach to improve the visual quality
+    // of the rotation.
+    // Reference:
+    // http://www.leptonica.org/rotation.html#ROTATION-BY-AREA-MAPPING
+    for (int i = miny; i < maxy; i++) {
+        for (int j = minx; j < maxx; j++) {
+            float32_t image_x = (float32_t)j - origin_x;
+            float32_t image_y = (float32_t)i - origin_y;
+            float32_t xt =
+                (image_x * cos_theta - image_y * sin_theta) + origin_x;
+            float32_t yt =
+                (image_x * sin_theta + image_y * cos_theta) + origin_y;
+
+            if (xt >= 0 && xt < src_w && yt >= 0 && yt < src_h) {
+                scg_pixel_t color = scg_image_get_pixel(src, (int)xt, (int)yt);
+                scg_image_set_pixel(dest, x + j, y + i, color);
+            }
+        }
+    }
+
+    return;
+}
+
+//
+// scg_image_draw_image_rotate_scale implementation
+//
+
+void scg_image_draw_image_rotate_scale(scg_image_t *dest, scg_image_t *src,
+                                       int x, int y, float32_t angle,
+                                       float32_t sx, float32_t sy) {
     if (sx <= 0.0f)
         sx = 1.0f;
     if (sy <= 0.0f)
@@ -632,17 +693,23 @@ void scg_image_draw_image_transform(scg_image_t *dest, scg_image_t *src, int x,
     float32_t origin_x = src_w * 0.5f;
     float32_t origin_y = src_h * 0.5f;
 
-    float32_t s = sinf(-angle);
-    float32_t c = cosf(-angle);
+    float32_t sin_theta = sinf(-angle);
+    float32_t cos_theta = cosf(-angle);
 
-    int x0 = (int)(-src_sw * c + src_sh * s);
-    int y0 = (int)(-src_sw * s - src_sh * c);
-    int x1 = (int)(src_sw * c + src_sh * s);
-    int y1 = (int)(src_sw * s - src_sh * c);
-    int x2 = (int)(src_sw * c - src_sh * s);
-    int y2 = (int)(src_sw * s + src_sh * c);
-    int x3 = (int)(-src_sw * c - src_sh * s);
-    int y3 = (int)(-src_sw * s + src_sh * c);
+    float32_t a = src_sw * cos_theta;
+    float32_t b = src_sh * cos_theta;
+    float32_t c = src_sw * sin_theta;
+    float32_t d = src_sh * sin_theta;
+    float32_t e = -src_sw * cos_theta;
+    float32_t f = -src_sw * sin_theta;
+    int x0 = (int)(e + d);
+    int y0 = (int)(f - b);
+    int x1 = (int)(a + d);
+    int y1 = (int)(c - b);
+    int x2 = (int)(a - d);
+    int y2 = (int)(c + b);
+    int x3 = (int)(e - d);
+    int y3 = (int)(f + b);
 
     int minx =
         scg_min_int(0, scg_min_int(scg_min_int(x0, scg_min_int(x1, x2)), x3));
@@ -655,12 +722,13 @@ void scg_image_draw_image_transform(scg_image_t *dest, scg_image_t *src, int x,
         for (int j = minx; j < maxx; j++) {
             float32_t image_x = (float32_t)j * ratio_x - origin_x;
             float32_t image_y = (float32_t)i * ratio_y - origin_y;
-            float32_t x_rot = (image_x * c - image_y * s) + origin_x;
-            float32_t y_rot = (image_x * s + image_y * c) + origin_y;
+            float32_t xt =
+                (image_x * cos_theta - image_y * sin_theta) + origin_x;
+            float32_t yt =
+                (image_x * sin_theta + image_y * cos_theta) + origin_y;
 
-            if (x_rot >= 0 && x_rot < src_w && y_rot >= 0 && y_rot < src_h) {
-                scg_pixel_t color =
-                    scg_image_get_pixel(src, (int)x_rot, (int)y_rot);
+            if (xt >= 0 && xt < src_w && yt >= 0 && yt < src_h) {
+                scg_pixel_t color = scg_image_get_pixel(src, (int)xt, (int)yt);
                 scg_image_set_pixel(dest, x + j, y + i, color);
             }
         }

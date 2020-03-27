@@ -48,10 +48,9 @@ static void draw(scg_image_t *draw_target, scg_image_t *plasma_buffer,
 
     int w = draw_target->width;
     int h = draw_target->height;
-    int x = w / 2 - PLASMA_BUFFER_WIDTH;
-    int y = h / 2 - PLASMA_BUFFER_HEIGHT;
-    scg_image_draw_image_transform(draw_target, plasma_buffer, x, y,
-                                   elapsed_time, 2.0f, 2.0f);
+    int x = w / 2 - PLASMA_BUFFER_WIDTH / 2;
+    int y = h / 2 - PLASMA_BUFFER_HEIGHT / 2;
+    scg_image_draw_image_rotate(draw_target, plasma_buffer, x, y, elapsed_time);
 }
 
 int main(void) {

@@ -9,9 +9,9 @@ static void draw(scg_image_t *draw_target, scg_image_t *image,
     int h = draw_target->height;
 
     scg_image_set_blend_mode(draw_target, SCG_BLEND_MODE_ALPHA);
-    scg_image_draw_image_transform(draw_target, image, w / 2 - image->height,
-                                   h / 2 - image->width, elapsed_time, 2.0f,
-                                   2.0f);
+    scg_image_draw_image_rotate_scale(draw_target, image, w / 2 - image->height,
+                                      h / 2 - image->width, elapsed_time, 2.0f,
+                                      2.0f);
 
     return;
 }

@@ -105,9 +105,6 @@ static void draw(scg_image_t *draw_target, metablobs_t *metablobs) {
 int main(void) {
     scg_config_t config = scg_config_new_default();
     config.video.title = "SCG Example: Metablobs";
-    config.video.width = 320;
-    config.video.height = 240;
-    config.video.scale = 2;
 
     scg_app_t app;
     scg_app_init(&app, config);

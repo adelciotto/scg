@@ -4,15 +4,15 @@
 static void draw(scg_image_t *draw_target) {
     int w = draw_target->width;
     int h = draw_target->height;
+    float32_t inv_w = 1.0f / (float32_t)w;
+    float32_t inv_h = 1.0f / (float32_t)h;
 
     for (int y = 0; y < h; y++) {
         for (int x = 0; x < w; x++) {
-            float32_t r =
-                scg_min_float32((float32_t)x / (float32_t)w * 255.0f, 255.0f);
-            float32_t g =
-                scg_min_float32((float32_t)y / (float32_t)h * 255.0f, 255.0f);
+            uint8_t r = (int)((x * inv_w) * 255.0f) & 255;
+            uint8_t g = (int)((y * inv_h) * 255.0f) & 255;
 
-            scg_pixel_t color = scg_pixel_new_rgb((uint8_t)r, (uint8_t)g, 128);
+            scg_pixel_t color = scg_pixel_new_rgb(r, g, 128);
             scg_image_set_pixel(draw_target, x, y, color);
         }
     }

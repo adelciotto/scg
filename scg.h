@@ -44,18 +44,18 @@ extern "C" {
 
 #define SCG_FONT_SIZE 8
 
-#define scg_log_errorf(fmt, ...)                                               \
-    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s() in %s, line %i: " fmt,    \
+#define scg_log_errorf(FMT, ...)                                               \
+    SDL_LogError(SDL_LOG_CATEGORY_APPLICATION, "%s() in %s, line %i: " FMT,    \
                  __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define scg_log_error(msg) scg_log_errorf("%s", msg)
-#define scg_log_warnf(fmt, ...)                                                \
-    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "%s() in %s, line %i: " fmt,     \
+#define scg_log_error(MSG) scg_log_errorf("%s", MSG)
+#define scg_log_warnf(FMT, ...)                                                \
+    SDL_LogWarn(SDL_LOG_CATEGORY_APPLICATION, "%s() in %s, line %i: " FMT,     \
                 __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define scg_log_warn(msg) scg_log_warnf("%s", msg)
-#define scg_log_infof(fmt, ...)                                                \
-    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%s() in %s, line %i: " fmt,     \
+#define scg_log_warn(MSG) scg_log_warnf("%s", MSG)
+#define scg_log_infof(FMT, ...)                                                \
+    SDL_LogInfo(SDL_LOG_CATEGORY_APPLICATION, "%s() in %s, line %i: " FMT,     \
                 __func__, __FILE__, __LINE__, __VA_ARGS__)
-#define scg_log_info(msg) scg_log_info("%s", msg)
+#define scg_log_info(MSG) scg_log_infof("%s", MSG)
 
 extern int scg_min_int(int val, int min);
 extern int scg_max_int(int val, int max);
@@ -72,19 +72,29 @@ extern float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start);
 
 typedef union scg_pixel_t {
     uint32_t packed;
+#if SDL_BYTEORDER == SDL_BIG_ENDIAN
     struct {
+        uint8_t a;
         uint8_t r;
         uint8_t g;
         uint8_t b;
+    } data;
+#else
+    struct {
+        uint8_t b;
+        uint8_t g;
+        uint8_t r;
         uint8_t a;
     } data;
+#endif
 } scg_pixel_t;
 
-#define scg_pixel_new_rgb(r, g, b) ((scg_pixel_t){.data = {(r), (g), (b), 255}})
-#define scg_pixel_new_rgba(r, g, b, a)                                         \
-    ((scg_pixel_t){.data = {(r), (g), (b), (a)}})
-#define scg_pixel_new_uint32(value) ((scg_pixel_t){.packed = (value)})
-#define scg_pixel_index_from_xy(x, y, width) ((int)((y) * (width) + (x)))
+#define scg_pixel_new_rgb(R, G, B)                                             \
+    ((scg_pixel_t){.data = {.r = (R), .g = (G), .b = (B), .a = 255}})
+#define scg_pixel_new_rgba(R, G, B, A)                                         \
+    ((scg_pixel_t){.data = {.r = (R), .g = (G), .b = (B), .a = (A)}})
+#define scg_pixel_new_uint32(VALUE) ((scg_pixel_t){.packed = (VALUE)})
+#define scg_pixel_index_from_xy(X, Y, WIDTH) ((int)((Y) * (WIDTH) + (X)))
 
 #define SCG_COLOR_WHITE scg_pixel_new_rgb(255, 255, 255)
 #define SCG_COLOR_GRAY scg_pixel_new_rgb(128, 128, 128)
@@ -93,6 +103,7 @@ typedef union scg_pixel_t {
 #define SCG_COLOR_GREEN scg_pixel_new_rgb(0, 255, 0)
 #define SCG_COLOR_BLUE scg_pixel_new_rgb(0, 0, 255)
 #define SCG_COLOR_YELLOW scg_pixel_new_rgb(255, 255, 0)
+#define SCG_COLOR_MAGENTA scg_pixel_new_rgb(255, 0, 255)
 #define SCG_COLOR_95_GREEN scg_pixel_new_rgb(0, 128, 128)
 #define SCG_COLOR_ICE_BLUE scg_pixel_new_rgb(153, 255, 255)
 #define SCG_COLOR_SKY_BLUE scg_pixel_new_rgb(135, 206, 235)
@@ -107,7 +118,6 @@ typedef struct scg_image_t {
     int width;
     int height;
     int pitch;
-    SDL_PixelFormat *pixel_format;
     uint32_t *pixels;
     scg_blend_mode_t blend_mode;
 } scg_image_t;
@@ -116,7 +126,7 @@ typedef struct scg_frame_metrics_t {
     int target_fps;
     float64_t frame_time_secs;
     float64_t frame_time_millisecs;
-    float64_t fps;
+    int fps;
 } scg_frame_metrics_t;
 
 extern scg_image_t *scg_image_new(int width, int height);
@@ -290,7 +300,7 @@ extern void scg_app_shutdown(scg_app_t *app);
 #define SCG__FONT_HIRAGANA_CHAR_CODE_START 0x3040
 #define SCG__FONT_HIRAGANA_CHAR_CODE_END 0x309F
 
-#define SCG__IMAGE_PIXEL_FORMAT SDL_PIXELFORMAT_RGBA32
+#define SCG__IMAGE_PIXEL_FORMAT SDL_PIXELFORMAT_ARGB8888
 
 #define SCG__MAX_VOLUME SDL_MIX_MAXVOLUME
 
@@ -407,19 +417,10 @@ scg_image_t *scg_image_new(int width, int height) {
         return NULL;
     }
 
-    SDL_PixelFormat *pixel_format = SDL_AllocFormat(SCG__IMAGE_PIXEL_FORMAT);
-    if (pixel_format == NULL) {
-        scg_log_errorf("Failed to allocate pixel format. %s", SDL_GetError());
-
-        free(pixels);
-        return NULL;
-    }
-
     scg_image_t *image = malloc(sizeof(*image));
     if (image == NULL) {
         scg_log_error("Failed to allocate memory for image");
 
-        SDL_FreeFormat(pixel_format);
         free(pixels);
         return NULL;
     }
@@ -427,7 +428,6 @@ scg_image_t *scg_image_new(int width, int height) {
     image->width = width;
     image->height = height;
     image->pitch = width * sizeof(*pixels);
-    image->pixel_format = pixel_format;
     image->pixels = pixels;
     image->blend_mode = SCG_BLEND_MODE_NONE;
 
@@ -469,6 +469,7 @@ scg_image_t *scg_image_new_from_bmp(const char *filepath) {
     }
 
     // We no longer need the original surface.
+    SDL_FreeFormat(pixel_format);
     SDL_FreeSurface(surface);
 
     int surface_w = converted_surface->w;
@@ -483,7 +484,6 @@ scg_image_t *scg_image_new_from_bmp(const char *filepath) {
                        filepath);
 
         SDL_FreeSurface(converted_surface);
-        SDL_FreeFormat(pixel_format);
         return NULL;
     }
     memcpy(pixels, surface_pixels, surface_pitch * surface_h);
@@ -494,7 +494,6 @@ scg_image_t *scg_image_new_from_bmp(const char *filepath) {
 
         free(pixels);
         SDL_FreeSurface(converted_surface);
-        SDL_FreeFormat(pixel_format);
         return NULL;
     }
 
@@ -502,7 +501,6 @@ scg_image_t *scg_image_new_from_bmp(const char *filepath) {
     image->width = surface_w;
     image->height = surface_h;
     image->pitch = surface_pitch;
-    image->pixel_format = pixel_format;
     image->pixels = pixels;
     image->blend_mode = SCG_BLEND_MODE_NONE;
 
@@ -530,12 +528,8 @@ scg_pixel_t scg_image_get_pixel(scg_image_t *image, int x, int y) {
     int w = image->width;
     int h = image->height;
 
-    // Return black pixel if outside of image bounds.
-    if (x < 0 || x >= w) {
-        return SCG_COLOR_BLACK;
-    }
-    if (y < 0 || y >= h) {
-        return SCG_COLOR_BLACK;
+    if (x < 0 || x >= w || y < 0 || y >= h) {
+        return SCG_COLOR_MAGENTA;
     }
 
     int i = scg_pixel_index_from_xy(x, y, w);
@@ -550,10 +544,7 @@ void scg_image_set_pixel(scg_image_t *image, int x, int y, scg_pixel_t color) {
     int w = image->width;
     int h = image->height;
 
-    if (x < 0 || x >= w) {
-        return;
-    }
-    if (y < 0 || y >= h) {
+    if (x < 0 || x >= w || y < 0 || y >= h) {
         return;
     }
 
@@ -898,9 +889,9 @@ void scg_image_draw_wstring(scg_image_t *image, const wchar_t *str, int x,
 
 void scg_image_draw_frame_metrics(scg_image_t *image,
                                   scg_frame_metrics_t frame_metrics) {
-    float32_t fps = frame_metrics.fps;
+    int fps = frame_metrics.fps;
     float32_t frame_time_ms = frame_metrics.frame_time_millisecs;
-    const char *fmt = "fps:%.2f ms/f:%.4f";
+    const char *fmt = "fps:%d ms/f:%.4f";
 
     ssize_t bsize = snprintf(NULL, 0, fmt, fps, frame_time_ms);
     char buffer[bsize];
@@ -957,7 +948,6 @@ bool scg_image_save_to_bmp(scg_image_t *image, const char *filepath) {
 //
 
 void scg_image_free(scg_image_t *image) {
-    SDL_FreeFormat(image->pixel_format);
     free(image->pixels);
     free(image);
 
@@ -1141,18 +1131,31 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
 
     // Log some information to stdout.
     {
-        scg_log_infof("Application '%s' successfuly initialised.\n"
+        scg_log_infof("Application '%s' successfuly initialised."
                       "Width: %d, Height: %d, Target FPS: %d, VSync: %d",
                       config.video.title, draw_target->width,
                       draw_target->height, screen->target_fps, screen->vsync);
         if (config.audio.enabled) {
-            scg_log_infof("Audio successfuly initialised.\n"
+            scg_log_infof("Audio successfuly initialised."
                           "Device ID: %d, Channels: %d, Samples/sec: %d, "
                           "Samples/frame: %d, Bytes/sample: %d",
                           audio->device_id, audio->num_channels,
                           audio->frequency, audio->latency_sample_count,
                           audio->bytes_per_sample);
         }
+
+        SDL_RendererInfo info;
+        SDL_GetRendererInfo(screen->sdl_renderer, &info);
+        scg_log_infof("Renderer name: %s", info.name);
+
+        char buffer[1024] = "";
+        for (unsigned int i = 0; i < info.num_texture_formats; i++) {
+            strcat(buffer, SDL_GetPixelFormatName(info.texture_formats[i]));
+            if (i != info.num_texture_formats - 1) {
+                strcat(buffer, ", ");
+            }
+        }
+        scg_log_infof("Supported texture formats: %s", buffer);
     }
 
     app->running = true;
@@ -1161,7 +1164,7 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
     app->screen = screen;
     app->keyboard = keyboard;
     app->audio = audio;
-    app->delta_time = screen->target_frame_time_secs;
+    app->delta_time = 0.0f;
     app->delta_time_counter = scg_get_performance_counter();
 
     return;
@@ -1337,9 +1340,13 @@ static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
     screen->sdl_window = sdl_window;
     screen->sdl_renderer = sdl_renderer;
     screen->sdl_texture = sdl_texture;
+    screen->vsync = vsync;
+
+    screen->frame_metrics.frame_time_secs = 0.0f;
+    screen->frame_metrics.frame_time_millisecs = 0.0f;
+    screen->frame_metrics.fps = 0;
     screen->frame_metrics_update_counter = scg_get_performance_counter();
     screen->frame_metrics.target_fps = screen->target_fps;
-    screen->vsync = vsync;
 
     return screen;
 }
@@ -1383,9 +1390,9 @@ static void scg__screen_present(scg__screen_t *screen,
             screen->frame_metrics.frame_time_millisecs =
                 scg_get_elapsed_time_millisecs(end_frame_counter,
                                                screen->last_frame_counter);
-            screen->frame_metrics.fps =
+            screen->frame_metrics.fps = roundf(
                 (float64_t)scg_get_performance_frequency() /
-                (float64_t)(end_frame_counter - screen->last_frame_counter);
+                (float64_t)(end_frame_counter - screen->last_frame_counter));
 
             screen->frame_metrics_update_counter =
                 scg_get_performance_counter();

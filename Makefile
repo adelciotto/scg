@@ -21,7 +21,8 @@ EXAMPLES := \
 	starfield_3d \
 	voxel_space \
 	matrix \
-	metablobs
+	metablobs \
+	seabug
 
 .PHONY: default
 default: $(EXAMPLES)

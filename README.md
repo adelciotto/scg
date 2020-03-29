@@ -52,6 +52,7 @@ Replace `{{example_name}}` with any of the following:
 * `audio`
 * `matrix`
 * `metablobs`
+* `seabug`
 
 By default all the examples are built with optimization flags. To build in debug mode, use the `DEBUG=1` flag.
 
@@ -82,10 +83,16 @@ Starfield | Starfield 3D | Voxel Space
 ![starfield](/screenshots/starfield.bmp) | ![starfield-3d](/screenshots/starfield_3d.bmp) | ![voxel-space](/screenshots/voxel_space.bmp)
 [Source](examples/starfield.c) | [Source](examples/starfield_3d.c) | [Source](examples/voxel_space.c)
 
-| Audio | Matrix | Metablobs
-| --- | --- | ---
-| ![audio](/screenshots/audio.bmp) | ![matrix](/screenshots/matrix.bmp) | ![metablobs](/screenshots/metablobs.bmp)
-| [Source](examples/audio.c) | [Source](examples/matrix.c) | [Source](examples/metablobs.c)
+Audio | Matrix | Metablobs
+--- | --- | ---
+![audio](/screenshots/audio.bmp) | ![matrix](/screenshots/matrix.bmp) | ![metablobs](/screenshots/metablobs.bmp)
+[Source](examples/audio.c) | [Source](examples/matrix.c) | [Source](examples/metablobs.c)
+
+| Seabug |
+| ---    |
+| ![seabug](/screenshots/seabug.bmp) |
+| [Source](examples/seabug.c)
+
 
 ## Converting audio
 

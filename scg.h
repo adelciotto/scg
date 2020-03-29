@@ -108,6 +108,9 @@ typedef union scg_pixel_t {
 #define SCG_COLOR_ICE_BLUE scg_pixel_new_rgb(153, 255, 255)
 #define SCG_COLOR_SKY_BLUE scg_pixel_new_rgb(135, 206, 235)
 
+extern scg_pixel_t scg_pixel_lerp_rgb(scg_pixel_t start, scg_pixel_t end,
+                                      float32_t t);
+
 typedef enum scg_blend_mode_t {
     SCG_BLEND_MODE_NONE,
     SCG_BLEND_MODE_MASK,
@@ -151,6 +154,10 @@ extern void scg_image_draw_rect(scg_image_t *image, int x, int y, int w, int h,
                                 scg_pixel_t color);
 extern void scg_image_fill_rect(scg_image_t *image, int x, int y, int w, int h,
                                 scg_pixel_t color);
+extern void scg_image_draw_circle(scg_image_t *image, int x, int y, int r,
+                                  scg_pixel_t color);
+extern void scg_image_fill_circle(scg_image_t *image, int x, int y, int r,
+                                  scg_pixel_t color);
 extern void scg_image_draw_char(scg_image_t *image, char char_code, int x,
                                 int y, scg_pixel_t color);
 extern void scg_image_draw_string(scg_image_t *image, const char *str, int x,
@@ -406,6 +413,21 @@ float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start) {
 float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
     return (float64_t)((end - start) * 1000) /
            (float64_t)scg_get_performance_frequency();
+}
+
+//
+// scg_pixel_lerp_rgb implementation
+//
+
+scg_pixel_t scg_pixel_lerp_rgb(scg_pixel_t start, scg_pixel_t end,
+                               float32_t t) {
+    t = scg_clamp_float32(t, 0.0f, 1.0f);
+
+    float32_t r = (1.0f - t) * start.data.r + t * end.data.r;
+    float32_t g = (1.0f - t) * start.data.g + t * end.data.g;
+    float32_t b = (1.0f - t) * start.data.b + t * end.data.b;
+
+    return scg_pixel_new_rgb((uint8_t)r, (uint8_t)g, (uint8_t)b);
 }
 
 //
@@ -815,6 +837,78 @@ void scg_image_fill_rect(scg_image_t *image, int x, int y, int w, int h,
         for (int j = 0; j <= w; j++) {
             scg_image_set_pixel(image, x + j, y + i, color);
         }
+    }
+}
+
+//
+// scg_image_draw_circle implementation
+//
+
+void scg_image_draw_circle(scg_image_t *image, int x, int y, int r,
+                           scg_pixel_t color) {
+    int f = 1 - r;
+    int ddf_x = 0;
+    int ddf_y = -2 * r;
+    int xi = 0;
+    int yi = r;
+
+    scg_image_set_pixel(image, x, y + r, color);
+    scg_image_set_pixel(image, x, y - r, color);
+    scg_image_set_pixel(image, x + r, y, color);
+    scg_image_set_pixel(image, x - r, y, color);
+
+    while (xi < yi) {
+        if (f >= 0) {
+            yi--;
+            ddf_y += 2;
+            f += ddf_y;
+        }
+
+        xi++;
+        ddf_x += 2;
+        f += ddf_x + 1;
+
+        scg_image_set_pixel(image, x + xi, y + yi, color);
+        scg_image_set_pixel(image, x - xi, y + yi, color);
+        scg_image_set_pixel(image, x + xi, y - yi, color);
+        scg_image_set_pixel(image, x - xi, y - yi, color);
+        scg_image_set_pixel(image, x + yi, y + xi, color);
+        scg_image_set_pixel(image, x - yi, y + xi, color);
+        scg_image_set_pixel(image, x + yi, y - xi, color);
+        scg_image_set_pixel(image, x - yi, y - xi, color);
+    }
+}
+
+//
+// scg_image_fill_circle implementation
+//
+
+void scg_image_fill_circle(scg_image_t *image, int x, int y, int r,
+                           scg_pixel_t color) {
+    int f = 1 - r;
+    int ddf_x = 0;
+    int ddf_y = -2 * r;
+    int xi = 0;
+    int yi = r;
+
+    scg_image_draw_line(image, x, y - r, x, y + r, color);
+    scg_image_draw_line(image, x - r, y, x + r, y, color);
+
+    while (xi < yi) {
+        if (f >= 0) {
+            yi--;
+            ddf_y += 2;
+            f += ddf_y;
+        }
+
+        xi++;
+        ddf_x += 2;
+        f += ddf_x + 1;
+
+        scg_image_draw_line(image, x - xi, y + yi, x + xi, y + yi, color);
+        scg_image_draw_line(image, x - xi, y - yi, x + xi, y - yi, color);
+        scg_image_draw_line(image, x - yi, y + xi, x + yi, y + xi, color);
+        scg_image_draw_line(image, x - yi, y - xi, x + yi, y - xi, color);
     }
 }
 

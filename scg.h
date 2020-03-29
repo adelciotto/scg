@@ -1199,7 +1199,7 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
 
     // Log some information to stdout.
     {
-        scg_log_infof("Application '%s' successfuly initialised."
+        scg_log_infof("Application '%s' successfuly initialised. "
                       "Width: %d, Height: %d, Target FPS: %d, VSync: %d",
                       config.video.title, draw_target->width,
                       draw_target->height, screen->target_fps, screen->vsync);

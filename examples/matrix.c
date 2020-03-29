@@ -44,8 +44,6 @@ static void init_code_string(code_string_t *code_string, int num_columns) {
     code_string->y = y;
     code_string->speed = speed;
     code_string->num_chars = num_chars;
-
-    return;
 }
 
 static void matrix_init(matrix_t *matrix, int num_columns, int num_rows) {
@@ -61,8 +59,6 @@ static void matrix_init(matrix_t *matrix, int num_columns, int num_rows) {
     matrix->num_rows = num_rows;
     matrix->num_code_strings = num_code_strings;
     matrix->code_strings = code_strings;
-
-    return;
 }
 
 static void update(matrix_t *matrix, scg_app_t *app) {
@@ -83,8 +79,6 @@ static void update(matrix_t *matrix, scg_app_t *app) {
             init_code_string(code_string, matrix->num_columns);
         }
     }
-
-    return;
 }
 
 static inline scg_pixel_t shade_pixel(scg_pixel_t color, float32_t shade) {
@@ -131,8 +125,6 @@ static void draw(scg_image_t *draw_target, matrix_t *matrix) {
             }
         }
     }
-
-    return;
 }
 
 int main(void) {

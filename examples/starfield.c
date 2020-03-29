@@ -44,8 +44,6 @@ static void init(starfield_t *starfield, scg_app_t *app, int num_stars,
             (float32_t)current->layer_index / (float32_t)num_layers;
         current->is_super_fast = is_super_fast;
     }
-
-    return;
 }
 
 static void update(starfield_t *starfield, scg_app_t *app) {
@@ -65,8 +63,6 @@ static void update(starfield_t *starfield, scg_app_t *app) {
             current->y = -(float32_t)starfield->star_size * 4.0f;
         }
     }
-
-    return;
 }
 
 static void draw(scg_image_t *draw_target, starfield_t *starfield) {
@@ -91,8 +87,6 @@ static void draw(scg_image_t *draw_target, starfield_t *starfield) {
                                 star_color);
         }
     }
-
-    return;
 }
 
 int main(void) {

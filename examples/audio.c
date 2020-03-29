@@ -23,8 +23,6 @@ static void draw(scg_image_t *draw_target, float32_t music_progress) {
                         progress_bar_color);
     scg_image_fill_rect(draw_target, 10, h / 2 + 20, progress_bar_width, 10,
                         progress_bar_color);
-
-    return;
 }
 
 int main(void) {

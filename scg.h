@@ -519,8 +519,6 @@ scg_image_t *scg_image_new_from_bmp(const char *filepath) {
 
 void scg_image_set_blend_mode(scg_image_t *image, scg_blend_mode_t blend_mode) {
     image->blend_mode = blend_mode;
-
-    return;
 }
 
 //
@@ -576,8 +574,6 @@ void scg_image_set_pixel(scg_image_t *image, int x, int y, scg_pixel_t color) {
             scg_pixel_new_rgb((uint8_t)r, (uint8_t)g, (uint8_t)b);
         image->pixels[i] = blended_color.packed;
     }
-
-    return;
 }
 
 //
@@ -591,8 +587,6 @@ void scg_image_clear(scg_image_t *image, scg_pixel_t color) {
     for (int i = 0; i < num_pixels; i++) {
         image->pixels[i] = pixel;
     }
-
-    return;
 }
 
 //
@@ -609,8 +603,6 @@ void scg_image_draw_image(scg_image_t *dest, scg_image_t *src, int x, int y) {
             scg_image_set_pixel(dest, x + j, y + i, color);
         }
     }
-
-    return;
 }
 
 //
@@ -667,8 +659,6 @@ void scg_image_draw_image_rotate(scg_image_t *dest, scg_image_t *src, int x,
             }
         }
     }
-
-    return;
 }
 
 //
@@ -733,8 +723,6 @@ void scg_image_draw_image_rotate_scale(scg_image_t *dest, scg_image_t *src,
             }
         }
     }
-
-    return;
 }
 
 //
@@ -798,8 +786,6 @@ void scg_image_draw_line(scg_image_t *image, int x0, int y0, int x1, int y1,
             y0 += step_y;
         }
     }
-
-    return;
 }
 
 //
@@ -817,8 +803,6 @@ void scg_image_draw_rect(scg_image_t *image, int x, int y, int w, int h,
     scg_image_draw_line(image, maxx, miny, maxx, maxy, color);
     scg_image_draw_line(image, maxx, maxy, minx, maxy, color);
     scg_image_draw_line(image, minx, maxy, minx, miny, color);
-
-    return;
 }
 
 //
@@ -832,8 +816,6 @@ void scg_image_fill_rect(scg_image_t *image, int x, int y, int w, int h,
             scg_image_set_pixel(image, x + j, y + i, color);
         }
     }
-
-    return;
 }
 
 static void scg__draw_char_bitmap(scg_image_t *image, const char *bitmap, int x,
@@ -847,8 +829,6 @@ static void scg__draw_char_bitmap(scg_image_t *image, const char *bitmap, int x,
             }
         }
     }
-
-    return;
 }
 
 //
@@ -864,8 +844,6 @@ void scg_image_draw_char(scg_image_t *image, char ch, int x, int y,
 
     const char *bitmap = scg__font8x8[char_code];
     scg__draw_char_bitmap(image, bitmap, x, y, color);
-
-    return;
 }
 
 //
@@ -890,8 +868,6 @@ void scg_image_draw_string(scg_image_t *image, const char *str, int x, int y,
 
         current_x += SCG_FONT_SIZE;
     }
-
-    return;
 }
 
 static const char *scg__bitmap_from_wchar(wchar_t code) {
@@ -921,8 +897,6 @@ void scg_image_draw_wchar(scg_image_t *image, wchar_t char_code, int x, int y,
     }
 
     scg__draw_char_bitmap(image, bitmap, x, y, color);
-
-    return;
 }
 
 //
@@ -947,8 +921,6 @@ void scg_image_draw_wstring(scg_image_t *image, const wchar_t *str, int x,
 
         current_x += SCG_FONT_SIZE;
     }
-
-    return;
 }
 
 //
@@ -979,8 +951,6 @@ void scg_image_draw_frame_metrics(scg_image_t *image,
     scg_image_set_blend_mode(image, SCG_BLEND_MODE_NONE);
     scg_image_draw_string(image, buffer, 10, 10, 0, color);
     scg_image_set_blend_mode(image, blend_mode);
-
-    return;
 }
 
 //
@@ -1018,8 +988,6 @@ bool scg_image_save_to_bmp(scg_image_t *image, const char *filepath) {
 void scg_image_free(scg_image_t *image) {
     free(image->pixels);
     free(image);
-
-    return;
 }
 
 //
@@ -1100,8 +1068,6 @@ void scg_sound_play(scg_sound_t *sound) {
     if (!sound->is_playing) {
         sound->is_playing = true;
     }
-
-    return;
 }
 
 //
@@ -1234,8 +1200,6 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
     app->audio = audio;
     app->delta_time = 0.0f;
     app->delta_time_counter = scg_get_performance_counter();
-
-    return;
 }
 
 //
@@ -1271,8 +1235,6 @@ void scg_app_begin_frame(scg_app_t *app) {
             scg_get_elapsed_time_secs(now, app->delta_time_counter);
         app->delta_time_counter = now;
     }
-
-    return;
 }
 
 //
@@ -1292,8 +1254,6 @@ void scg_app_end_frame(scg_app_t *app) {
     }
 
     scg__screen_present(app->screen, app->draw_target);
-
-    return;
 }
 
 //
@@ -1310,8 +1270,6 @@ void scg_app_shutdown(scg_app_t *app) {
     scg_image_free(app->draw_target);
 
     SDL_Quit();
-
-    return;
 }
 
 static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
@@ -1474,6 +1432,7 @@ static void scg__screen_free(scg__screen_t *screen) {
     SDL_DestroyTexture(screen->sdl_texture);
     SDL_DestroyRenderer(screen->sdl_renderer);
     SDL_DestroyWindow(screen->sdl_window);
+
     free(screen);
 }
 

@@ -50,8 +50,6 @@ static void init(starfield_t *starfield, scg_app_t *app, int num_stars,
         current->z = (float32_t)(rand() % (int)max_distance);
         current->is_super_fast = is_super_fast;
     }
-
-    return;
 }
 
 static void update(starfield_t *starfield, scg_app_t *app) {
@@ -71,8 +69,6 @@ static void update(starfield_t *starfield, scg_app_t *app) {
             current->z = starfield->max_distance + (float32_t)(rand() % 10);
         }
     }
-
-    return;
 }
 
 static void draw(scg_image_t *draw_target, starfield_t *starfield) {
@@ -101,8 +97,6 @@ static void draw(scg_image_t *draw_target, starfield_t *starfield) {
 
         scg_image_set_pixel(draw_target, (int)x, (int)y, star_color);
     }
-
-    return;
 }
 
 int main(void) {

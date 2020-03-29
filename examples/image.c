@@ -35,8 +35,6 @@ static void draw(scg_image_t *draw_target, scg_image_t *image) {
     scg_image_set_blend_mode(draw_target, SCG_BLEND_MODE_MASK);
     scg_image_draw_image(draw_target, image, image_blend_mask_x,
                          center_image_y);
-
-    return;
 }
 
 int main(void) {

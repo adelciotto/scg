@@ -19,8 +19,6 @@ static void draw(scg_image_t *draw_target) {
 
     scg_image_draw_string(draw_target, "Hello, World!", w / 2, h / 2, 1,
                           SCG_COLOR_WHITE);
-
-    return;
 }
 
 int main(void) {

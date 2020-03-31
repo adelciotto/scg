@@ -237,6 +237,7 @@ typedef struct scg_config_t {
         int scale;
         bool fullscreen;
         bool vsync;
+        bool lock_fps;
         bool show_frame_metrics;
     } video;
 
@@ -260,6 +261,7 @@ typedef struct scg__screen_t {
     float64_t frame_metrics_update_counter;
     scg_frame_metrics_t frame_metrics;
     bool vsync;
+    bool lock_fps;
 
     SDL_Window *sdl_window;
     SDL_Renderer *sdl_renderer;
@@ -269,6 +271,7 @@ typedef struct scg__screen_t {
 typedef struct scg_app_t {
     bool running;
     float32_t delta_time;
+    float32_t elapsed_time;
     scg_config_t config;
     scg_image_t *draw_target;
     scg_keyboard_t *keyboard;
@@ -327,7 +330,8 @@ static void scg__decode_font_data(char *out, size_t out_length,
 
 static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
                                       const char *title, int scale,
-                                      bool fullscreen, bool vsync);
+                                      bool fullscreen, bool vsync,
+                                      bool lock_fps);
 static void scg__screen_present(scg__screen_t *screen,
                                 scg_image_t *draw_target);
 static void scg__screen_free(scg__screen_t *screen);
@@ -1195,6 +1199,7 @@ scg_config_t scg_config_new_default(void) {
                   .scale = 1,
                   .fullscreen = false,
                   .vsync = true,
+                  .lock_fps = true,
                   .show_frame_metrics = true},
         .audio = {.enabled = false, .volume = SCG__MAX_VOLUME / 2}};
 }
@@ -1227,9 +1232,9 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
         exit(EXIT_FAILURE);
     }
 
-    scg__screen_t *screen =
-        scg__screen_new(draw_target, config.video.title, config.video.scale,
-                        config.video.fullscreen, config.video.vsync);
+    scg__screen_t *screen = scg__screen_new(
+        draw_target, config.video.title, config.video.scale,
+        config.video.fullscreen, config.video.vsync, config.video.lock_fps);
     if (screen == NULL) {
         scg_log_error("Failed to create screen");
 
@@ -1303,6 +1308,7 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
     app->keyboard = keyboard;
     app->audio = audio;
     app->delta_time = 0.0f;
+    app->elapsed_time = 0.0f;
     app->delta_time_counter = scg_get_performance_counter();
 }
 
@@ -1334,7 +1340,7 @@ bool scg_app_process_events(scg_app_t *app) {
         return false;
     }
 
-    // Calculate the delta time in seconds per frame.
+    // Calculate the delta time and elapsed time in seconds.
     // This is useful for apps that want some quick consistent animation
     // and don't care about fixed updates.
     {
@@ -1342,6 +1348,8 @@ bool scg_app_process_events(scg_app_t *app) {
         app->delta_time =
             scg_get_elapsed_time_secs(now, app->delta_time_counter);
         app->delta_time_counter = now;
+
+        app->elapsed_time += app->delta_time;
     }
 
     return true;
@@ -1402,7 +1410,8 @@ static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
 
 static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
                                       const char *title, int scale,
-                                      bool fullscreen, bool vsync) {
+                                      bool fullscreen, bool vsync,
+                                      bool lock_fps) {
     SDL_DisplayMode display_mode;
     if (SDL_GetDesktopDisplayMode(0, &display_mode) != 0) {
         scg_log_errorf("Failed to get SDL desktop display mode. %s",
@@ -1485,6 +1494,7 @@ static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
     screen->sdl_renderer = sdl_renderer;
     screen->sdl_texture = sdl_texture;
     screen->vsync = vsync;
+    screen->lock_fps = lock_fps;
 
     screen->frame_metrics.frame_time_secs = 0.0f;
     screen->frame_metrics.frame_time_millisecs = 0.0f;
@@ -1498,29 +1508,38 @@ static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
 static void scg__screen_present(scg__screen_t *screen,
                                 scg_image_t *draw_target) {
     // Wait until we have reached the target amount of time per frame (e.g 60hz,
-    // ~16ms). Spinning in a while loop seems to be the most accurate way to do
-    // this, as trying to use SDL_Delay (sleeping) is dependant on other
-    // factors.
-    if (screen->vsync) {
+    // ~16ms).
+    if (screen->lock_fps) {
         float64_t target_secs = screen->target_frame_time_secs;
-        float64_t elapsed_time_secs = scg_get_elapsed_time_secs(
-            scg_get_performance_counter(), screen->last_frame_counter);
 
-        if (elapsed_time_secs < target_secs) {
-            while (elapsed_time_secs < target_secs) {
-                elapsed_time_secs = scg_get_elapsed_time_secs(
-                    scg_get_performance_counter(), screen->last_frame_counter);
+        if (scg_get_elapsed_time_secs(scg_get_performance_counter(),
+                                      screen->last_frame_counter) <
+            target_secs) {
+            float64_t elapsed_time = scg_get_elapsed_time_secs(
+                scg_get_performance_counter(), screen->last_frame_counter);
+
+            int32_t sleep_time = ((target_secs - elapsed_time) * 1000) - 1;
+            if (sleep_time > 0) {
+                SDL_Delay(sleep_time);
+            }
+
+            while (scg_get_elapsed_time_secs(scg_get_performance_counter(),
+                                             screen->last_frame_counter) <
+                   target_secs) {
             }
         }
     }
 
     uint64_t end_frame_counter = scg_get_performance_counter();
 
-    SDL_UpdateTexture(screen->sdl_texture, NULL, draw_target->pixels,
-                      draw_target->pitch);
-    SDL_RenderClear(screen->sdl_renderer);
-    SDL_RenderCopy(screen->sdl_renderer, screen->sdl_texture, NULL, NULL);
-    SDL_RenderPresent(screen->sdl_renderer);
+    // Update the texture and present it on screen.
+    {
+        SDL_UpdateTexture(screen->sdl_texture, NULL, draw_target->pixels,
+                          draw_target->pitch);
+        SDL_RenderClear(screen->sdl_renderer);
+        SDL_RenderCopy(screen->sdl_renderer, screen->sdl_texture, NULL, NULL);
+        SDL_RenderPresent(screen->sdl_renderer);
+    }
 
     // Update the frame metrics every second.
     // TODO: Instead of capturing every second, average the metrics...

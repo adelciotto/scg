@@ -112,12 +112,8 @@ int main(void) {
     metablobs_t metablobs;
     metablobs_init(&metablobs, METABLOBS_CONST_A, METABLOBS_CONST_B);
 
-    uint64_t start_time = scg_get_performance_counter();
-
     while (scg_app_process_events(&app)) {
-        float32_t elapsed_time = scg_get_elapsed_time_secs(
-            scg_get_performance_counter(), start_time);
-        update(&metablobs, elapsed_time);
+        update(&metablobs, app.elapsed_time);
 
         draw(app.draw_target, &metablobs);
 

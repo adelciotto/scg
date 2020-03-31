@@ -24,6 +24,7 @@ static void draw(scg_image_t *draw_target) {
 int main(void) {
     scg_config_t config = scg_config_new_default();
     config.video.title = "SCG Example: Basic";
+    config.video.vsync = false;
 
     scg_app_t app;
     scg_app_init(&app, config);

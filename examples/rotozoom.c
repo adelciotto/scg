@@ -50,14 +50,9 @@ int main(void) {
         return -1;
     }
 
-    uint64_t start_time = scg_get_performance_counter();
-
     while (scg_app_process_events(&app)) {
-        float32_t elapsed_time = scg_get_elapsed_time_secs(
-            scg_get_performance_counter(), start_time);
-
-        float32_t scale = 0.5f + sinf(elapsed_time * 0.5f) * 2.0f;
-        float32_t angle = elapsed_time;
+        float32_t scale = 0.5f + sinf(app.elapsed_time * 0.5f) * 2.0f;
+        float32_t angle = app.elapsed_time;
         draw(app.draw_target, src_image, angle, scale);
 
         scg_app_present(&app);

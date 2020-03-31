@@ -93,12 +93,8 @@ int main(void) {
     tunnel_t tunnel;
     init(&app, &tunnel, image);
 
-    uint64_t start_time = scg_get_performance_counter();
-
     while (scg_app_process_events(&app)) {
-        float32_t elapsed_time = scg_get_elapsed_time_secs(
-            scg_get_performance_counter(), start_time);
-        draw(app.draw_target, &tunnel, elapsed_time);
+        draw(app.draw_target, &tunnel, app.elapsed_time);
 
         scg_app_present(&app);
     }

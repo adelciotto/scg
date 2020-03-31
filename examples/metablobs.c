@@ -114,19 +114,17 @@ int main(void) {
 
     uint64_t start_time = scg_get_performance_counter();
 
-    while (app.running) {
-        scg_app_begin_frame(&app);
-
+    while (scg_app_process_events(&app)) {
         float32_t elapsed_time = scg_get_elapsed_time_secs(
             scg_get_performance_counter(), start_time);
         update(&metablobs, elapsed_time);
 
         draw(app.draw_target, &metablobs);
 
-        scg_app_end_frame(&app);
+        scg_app_present(&app);
     }
 
-    scg_app_shutdown(&app);
+    scg_app_free(&app);
 
     return 0;
 }

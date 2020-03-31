@@ -279,9 +279,10 @@ typedef struct scg_app_t {
 } scg_app_t;
 
 extern void scg_app_init(scg_app_t *app, scg_config_t config);
-extern void scg_app_begin_frame(scg_app_t *app);
-extern void scg_app_end_frame(scg_app_t *app);
-extern void scg_app_shutdown(scg_app_t *app);
+extern bool scg_app_process_events(scg_app_t *app);
+extern void scg_app_present(scg_app_t *app);
+extern void scg_app_close(scg_app_t *app);
+extern void scg_app_free(scg_app_t *app);
 
 #ifdef __cplusplus
 }
@@ -1306,10 +1307,10 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
 }
 
 //
-// scg_app_begin_frame implementation
+// scg_app_process_events implementation
 //
 
-void scg_app_begin_frame(scg_app_t *app) {
+bool scg_app_process_events(scg_app_t *app) {
     // Handle events that need to be polled. This may include
     // text input, mouse events, and game controller events.
     {
@@ -1329,6 +1330,10 @@ void scg_app_begin_frame(scg_app_t *app) {
         }
     }
 
+    if (app->running == false) {
+        return false;
+    }
+
     // Calculate the delta time in seconds per frame.
     // This is useful for apps that want some quick consistent animation
     // and don't care about fixed updates.
@@ -1338,13 +1343,15 @@ void scg_app_begin_frame(scg_app_t *app) {
             scg_get_elapsed_time_secs(now, app->delta_time_counter);
         app->delta_time_counter = now;
     }
+
+    return true;
 }
 
 //
-// scg_app_end_frame implementation
+// scg_app_present implementation
 //
 
-void scg_app_end_frame(scg_app_t *app) {
+void scg_app_present(scg_app_t *app) {
     if (app->config.video.show_frame_metrics) {
         scg_image_draw_frame_metrics(app->draw_target,
                                      app->screen->frame_metrics);
@@ -1360,10 +1367,18 @@ void scg_app_end_frame(scg_app_t *app) {
 }
 
 //
-// scg_app_shutdown implementation
+// scg_app_close implementation
 //
 
-void scg_app_shutdown(scg_app_t *app) {
+void scg_app_close(scg_app_t *app) {
+    app->running = false;
+}
+
+//
+// scg_app_free implementation
+//
+
+void scg_app_free(scg_app_t *app) {
     if (app->audio != NULL) {
         scg__audio_free(app->audio);
     }

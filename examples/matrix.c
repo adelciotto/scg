@@ -141,18 +141,16 @@ int main(void) {
     matrix_t matrix;
     matrix_init(&matrix, num_columns, num_rows);
 
-    while (app.running) {
-        scg_app_begin_frame(&app);
-
+    while (scg_app_process_events(&app)) {
         update(&matrix, &app);
 
         draw(app.draw_target, &matrix);
 
-        scg_app_end_frame(&app);
+        scg_app_present(&app);
     }
 
     free(matrix.code_strings);
-    scg_app_shutdown(&app);
+    scg_app_free(&app);
 
     return 0;
 }

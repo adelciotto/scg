@@ -102,17 +102,15 @@ int main(void) {
     init(&starfield, &app, STARFIELD_NUM_STARS, STARFIELD_NUM_LAYERS,
          STARFIELD_SCROLL_SPEED);
 
-    while (app.running) {
-        scg_app_begin_frame(&app);
-
+    while (scg_app_process_events(&app)) {
         update(&starfield, &app);
 
         draw(app.draw_target, &starfield);
 
-        scg_app_end_frame(&app);
+        scg_app_present(&app);
     }
 
-    scg_app_shutdown(&app);
+    scg_app_free(&app);
 
     return 0;
 }

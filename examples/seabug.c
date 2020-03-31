@@ -162,18 +162,16 @@ int main(void) {
 
     float32_t animation_time = 0.0f;
 
-    while (app.running) {
-        scg_app_begin_frame(&app);
-
+    while (scg_app_process_events(&app)) {
         animation_time += SEABUG_ANIMATION_SPEED * app.delta_time;
         update(&seabug, animation_time);
 
         draw(app.draw_target, seabug);
 
-        scg_app_end_frame(&app);
+        scg_app_present(&app);
     }
 
-    scg_app_shutdown(&app);
+    scg_app_free(&app);
 
     return 0;
 }

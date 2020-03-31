@@ -183,9 +183,7 @@ int main(void) {
         return -1;
     }
 
-    while (app.running) {
-        scg_app_begin_frame(&app);
-
+    while (scg_app_process_events(&app)) {
         float32_t delta_time = app.delta_time;
 
         if (scg_keyboard_is_key_down(app.keyboard, SCG_KEY_UP)) {
@@ -223,12 +221,12 @@ int main(void) {
 
         draw(app.draw_target, terrain, camera);
 
-        scg_app_end_frame(&app);
+        scg_app_present(&app);
     }
 
     scg_image_free(terrain.height_map);
     scg_image_free(terrain.color_map);
-    scg_app_shutdown(&app);
+    scg_app_free(&app);
 
     return 0;
 }

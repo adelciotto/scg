@@ -49,16 +49,14 @@ int main(void) {
         return -1;
     }
 
-    while (app.running) {
-        scg_app_begin_frame(&app);
-
+    while (scg_app_process_events(&app)) {
         draw(app.draw_target, image);
 
-        scg_app_end_frame(&app);
+        scg_app_present(&app);
     }
 
     scg_image_free(image);
-    scg_app_shutdown(&app);
+    scg_app_free(&app);
 
     return 0;
 }

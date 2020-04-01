@@ -22,7 +22,8 @@ EXAMPLES := \
 	voxel_space \
 	matrix \
 	metablobs \
-	seabug
+	seabug \
+	mouse
 
 .PHONY: default
 default: $(EXAMPLES)

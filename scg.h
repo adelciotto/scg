@@ -70,6 +70,16 @@ extern uint64_t scg_get_performance_frequency(void);
 extern float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start);
 extern float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start);
 
+// This is for quick and dirty string formatting, and
+// is designed to work with some stack allocated buffer.
+// It returns an int like the std sprintf. Most of the time this won't be
+// checked, and the buffer should just be large enough.
+extern int scg_sprintf(char *buf, const char *fmt, ...);
+
+// This will dynamically allocate the correct amount of memory for
+// the formatted string. The buf argument must be free'd by the caller.
+extern int scg_asprintf(char **buf, const char *fmt, ...);
+
 typedef union scg_pixel_t {
     uint32_t packed;
 #if SDL_BYTEORDER == SDL_BIG_ENDIAN
@@ -229,6 +239,23 @@ extern bool scg_keyboard_is_key_up(scg_keyboard_t *keyboard,
 extern bool scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
                                           scg_key_code_t code);
 
+typedef enum scg_mouse_button_t {
+    SCG_MOUSE_BUTTON_LEFT = SDL_BUTTON_LEFT,
+    SCG_MOUSE_BUTTON_MIDDLE = SDL_BUTTON_MIDDLE,
+    SCG_MOUSE_BUTTON_RIGHT = SDL_BUTTON_RIGHT
+} scg_mouse_button_t;
+
+typedef struct scg_mouse_t {
+    int x, y;
+    int window_x, window_y;
+    uint32_t button_state;
+} scg_mouse_t;
+
+extern bool scg_mouse_is_button_down(scg_mouse_t *mouse,
+                                     scg_mouse_button_t button);
+extern bool scg_mouse_is_button_up(scg_mouse_t *mouse,
+                                   scg_mouse_button_t button);
+
 typedef struct scg_config_t {
     struct {
         int width;
@@ -242,8 +269,7 @@ typedef struct scg_config_t {
     } video;
 
     struct {
-        bool enabled;
-        bool text_input;
+        bool hide_mouse_cursor;
     } input;
 
     struct {
@@ -255,6 +281,7 @@ typedef struct scg_config_t {
 extern scg_config_t scg_config_new_default(void);
 
 typedef struct scg__screen_t {
+    int window_width, window_height;
     int target_fps;
     float64_t target_frame_time_secs;
     uint64_t last_frame_counter;
@@ -275,6 +302,7 @@ typedef struct scg_app_t {
     scg_config_t config;
     scg_image_t *draw_target;
     scg_keyboard_t *keyboard;
+    scg_mouse_t *mouse;
     scg_audio_t *audio;
 
     uint64_t delta_time_counter;
@@ -301,6 +329,7 @@ extern void scg_app_free(scg_app_t *app);
 #ifdef SCG_IMPLEMENTATION
 
 #include <math.h>
+#include <stdarg.h>
 #include <stdlib.h>
 
 #define SCG__DEFAULT_REFRESH_RATE 60
@@ -331,13 +360,17 @@ static void scg__decode_font_data(char *out, size_t out_length,
 static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
                                       const char *title, int scale,
                                       bool fullscreen, bool vsync,
-                                      bool lock_fps);
+                                      bool lock_fps, bool hide_mouse_cursor);
 static void scg__screen_present(scg__screen_t *screen,
                                 scg_image_t *draw_target);
 static void scg__screen_free(scg__screen_t *screen);
 
 static scg_keyboard_t *scg__keyboard_new(void);
 static void scg__keyboard_update(scg_keyboard_t *keyboard);
+
+static scg_mouse_t *scg__mouse_new(void);
+static void scg__mouse_update(scg_mouse_t *mouse, int w, int h, int win_w,
+                              int win_h);
 
 static scg_audio_t *scg__audio_new(int target_fps);
 static void scg__audio_update(scg_audio_t *audio);
@@ -424,6 +457,73 @@ float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start) {
 float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start) {
     return (float64_t)((end - start) * 1000) /
            (float64_t)scg_get_performance_frequency();
+}
+
+static int scg__vsprintf(char *buf, const char *fmt, va_list args) {
+    va_list tmpa;
+    va_copy(tmpa, args);
+
+    int size = vsnprintf(NULL, 0, fmt, tmpa);
+
+    va_end(tmpa);
+
+    if (size < 0) {
+        return -1;
+    }
+
+    size = vsnprintf(buf, size + 1, fmt, args);
+    return size;
+}
+
+//
+// scg_sprintf implementation
+//
+
+int scg_sprintf(char *buf, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    int size = scg__vsprintf(buf, fmt, args);
+
+    va_end(args);
+
+    return size;
+}
+
+static int scg__vasprintf(char **buf, const char *fmt, va_list args) {
+    va_list tmpa;
+    va_copy(tmpa, args);
+
+    int size = vsnprintf(NULL, 0, fmt, tmpa);
+
+    va_end(tmpa);
+
+    if (size < 0) {
+        return -1;
+    }
+
+    *buf = malloc(size + 1);
+    if (*buf == NULL) {
+        return -1;
+    }
+
+    size = vsnprintf(*buf, size + 1, fmt, args);
+    return size;
+}
+
+//
+// scg_asprintf implementation
+//
+
+int scg_asprintf(char **buf, const char *fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+
+    int size = scg__vasprintf(buf, fmt, args);
+
+    va_end(args);
+
+    return size;
 }
 
 //
@@ -1122,6 +1222,22 @@ bool scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
 }
 
 //
+// scg_mouse_is_button_down implementation
+//
+
+bool scg_mouse_is_button_down(scg_mouse_t *mouse, scg_mouse_button_t button) {
+    return mouse->button_state & SDL_BUTTON(button);
+}
+
+//
+// scg_mouse_is_button_up implementation
+//
+
+bool scg_mouse_is_button_up(scg_mouse_t *mouse, scg_mouse_button_t button) {
+    return !(mouse->button_state & SDL_BUTTON(button));
+}
+
+//
 // scg_sound_new_from_wav implementation
 //
 
@@ -1201,6 +1317,7 @@ scg_config_t scg_config_new_default(void) {
                   .vsync = true,
                   .lock_fps = true,
                   .show_frame_metrics = true},
+        .input = {.hide_mouse_cursor = true},
         .audio = {.enabled = false, .volume = SCG__MAX_VOLUME / 2}};
 }
 
@@ -1232,9 +1349,10 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
         exit(EXIT_FAILURE);
     }
 
-    scg__screen_t *screen = scg__screen_new(
-        draw_target, config.video.title, config.video.scale,
-        config.video.fullscreen, config.video.vsync, config.video.lock_fps);
+    scg__screen_t *screen =
+        scg__screen_new(draw_target, config.video.title, config.video.scale,
+                        config.video.fullscreen, config.video.vsync,
+                        config.video.lock_fps, config.input.hide_mouse_cursor);
     if (screen == NULL) {
         scg_log_error("Failed to create screen");
 
@@ -1252,6 +1370,19 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
         SDL_Quit();
         exit(EXIT_FAILURE);
     }
+
+    scg_mouse_t *mouse = scg__mouse_new();
+    if (mouse == NULL) {
+        scg_log_error("Failed to create mouse");
+
+        free(keyboard);
+        scg__screen_free(screen);
+        scg_image_free(draw_target);
+        SDL_Quit();
+        exit(EXIT_FAILURE);
+    }
+    scg__mouse_update(mouse, draw_target->width, draw_target->height,
+                      screen->window_width, screen->window_height);
 
     scg_audio_t *audio = NULL;
     if (config.audio.enabled) {
@@ -1306,6 +1437,7 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
     app->draw_target = draw_target;
     app->screen = screen;
     app->keyboard = keyboard;
+    app->mouse = mouse;
     app->audio = audio;
     app->delta_time = 0.0f;
     app->elapsed_time = 0.0f;
@@ -1321,23 +1453,27 @@ bool scg_app_process_events(scg_app_t *app) {
     // text input, mouse events, and game controller events.
     {
         SDL_Event event;
-        SDL_PollEvent(&event);
-
-        switch (event.type) {
-        case SDL_QUIT:
-            app->running = false;
-            break;
-        // Quit the app on ESC key, for convinience.
-        case SDL_KEYDOWN:
-            if (event.key.keysym.sym == SDLK_ESCAPE) {
+        while (SDL_PollEvent(&event)) {
+            switch (event.type) {
+            case SDL_QUIT:
                 app->running = false;
+                return false;
+            case SDL_KEYDOWN:
+                if (event.key.keysym.sym == SDLK_ESCAPE) {
+                    app->running = false;
+                    return false;
+                }
+                break;
+            case SDL_MOUSEBUTTONUP:
+            case SDL_MOUSEBUTTONDOWN:
+            case SDL_MOUSEMOTION:
+                scg__mouse_update(app->mouse, app->draw_target->width,
+                                  app->draw_target->height,
+                                  app->screen->window_width,
+                                  app->screen->window_height);
                 break;
             }
         }
-    }
-
-    if (app->running == false) {
-        return false;
     }
 
     // Calculate the delta time and elapsed time in seconds.
@@ -1391,6 +1527,7 @@ void scg_app_free(scg_app_t *app) {
         scg__audio_free(app->audio);
     }
 
+    free(app->mouse);
     free(app->keyboard);
     scg__screen_free(app->screen);
     scg_image_free(app->draw_target);
@@ -1411,7 +1548,7 @@ static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
 static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
                                       const char *title, int scale,
                                       bool fullscreen, bool vsync,
-                                      bool lock_fps) {
+                                      bool lock_fps, bool hide_mouse_cursor) {
     SDL_DisplayMode display_mode;
     if (SDL_GetDesktopDisplayMode(0, &display_mode) != 0) {
         scg_log_errorf("Failed to get SDL desktop display mode. %s",
@@ -1426,12 +1563,14 @@ static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
 
     int w = draw_target->width;
     int h = draw_target->height;
+    int window_w = w * scale;
+    int window_h = h * scale;
 
     // Setup the SDL window.
     {
-        sdl_window = SDL_CreateWindow(
-            title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w * scale,
-            h * scale, SDL_WINDOW_SHOWN | SDL_WINDOW_RESIZABLE);
+        sdl_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED,
+                                      SDL_WINDOWPOS_CENTERED, window_w,
+                                      window_h * scale, SDL_WINDOW_SHOWN);
         if (sdl_window == NULL) {
             scg_log_errorf("Failed to create SDL Window. %s", SDL_GetError());
 
@@ -1440,7 +1579,14 @@ static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
 
         if (fullscreen) {
             SDL_SetWindowFullscreen(sdl_window, SDL_WINDOW_FULLSCREEN_DESKTOP);
+
+            // Desktop fullscreen mode will take the current size of the users
+            // desktop,
+            SDL_GetWindowSize(sdl_window, &window_w, &window_h);
         }
+
+        int toggle = hide_mouse_cursor ? SDL_DISABLE : SDL_ENABLE;
+        SDL_ShowCursor(toggle);
     }
 
     // Setup the SDL renderer.
@@ -1487,6 +1633,8 @@ static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
         return NULL;
     }
 
+    screen->window_width = window_w;
+    screen->window_height = window_h;
     screen->target_fps = scg__get_monitor_refresh_rate(display_mode);
     screen->target_frame_time_secs = 1.0 / (float64_t)screen->target_fps;
     screen->last_frame_counter = scg_get_performance_counter();
@@ -1591,6 +1739,29 @@ static scg_keyboard_t *scg__keyboard_new(void) {
 static void scg__keyboard_update(scg_keyboard_t *keyboard) {
     memcpy(keyboard->previous_key_states, keyboard->current_key_states,
            sizeof(uint8_t) * SDL_NUM_SCANCODES);
+}
+
+static scg_mouse_t *scg__mouse_new(void) {
+    scg_mouse_t *mouse = malloc(sizeof(*mouse));
+    if (mouse == NULL) {
+        scg_log_error("Failed to allocate memory for mouse");
+
+        return NULL;
+    }
+
+    return mouse;
+}
+
+static void scg__mouse_update(scg_mouse_t *mouse, int w, int h, int win_w,
+                              int win_h) {
+    int x, y;
+    uint32_t button_state = SDL_GetMouseState(&x, &y);
+
+    mouse->window_x = x;
+    mouse->window_y = y;
+    mouse->x = (int)(((float32_t)x / (float32_t)win_w) * (float32_t)w);
+    mouse->y = (int)(((float32_t)y / (float32_t)win_h) * (float32_t)h);
+    mouse->button_state = button_state;
 }
 
 static scg_audio_t *scg__audio_new(int target_fps) {

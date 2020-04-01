@@ -228,8 +228,8 @@ typedef enum scg_key_code_t {
 } scg_key_code_t;
 
 typedef struct scg_keyboard_t {
-    const uint8_t *current_key_states;
-    uint8_t previous_key_states[SDL_NUM_SCANCODES];
+    bool current_key_states[SDL_NUM_SCANCODES];
+    bool last_frame_key_states[SDL_NUM_SCANCODES];
 } scg_keyboard_t;
 
 extern bool scg_keyboard_is_key_down(scg_keyboard_t *keyboard,
@@ -366,7 +366,7 @@ static void scg__screen_present(scg__screen_t *screen,
 static void scg__screen_free(scg__screen_t *screen);
 
 static scg_keyboard_t *scg__keyboard_new(void);
-static void scg__keyboard_update(scg_keyboard_t *keyboard);
+static void scg__keyboard_update_keystates(scg_keyboard_t *keyboard);
 
 static scg_mouse_t *scg__mouse_new(void);
 static void scg__mouse_update(scg_mouse_t *mouse, int w, int h, int win_w,
@@ -1217,7 +1217,7 @@ bool scg_keyboard_is_key_up(scg_keyboard_t *keyboard, scg_key_code_t key) {
 
 bool scg_keyboard_is_key_triggered(scg_keyboard_t *keyboard,
                                    scg_key_code_t key) {
-    return keyboard->previous_key_states[key] == 0 &&
+    return keyboard->last_frame_key_states[key] == 0 &&
            keyboard->current_key_states[key] == 1;
 }
 
@@ -1459,10 +1459,10 @@ bool scg_app_process_events(scg_app_t *app) {
                 app->running = false;
                 return false;
             case SDL_KEYDOWN:
-                if (event.key.keysym.sym == SDLK_ESCAPE) {
-                    app->running = false;
-                    return false;
-                }
+                app->keyboard->current_key_states[event.key.keysym.scancode] = true;
+                break;
+            case SDL_KEYUP:
+                app->keyboard->current_key_states[event.key.keysym.scancode] = false;
                 break;
             case SDL_MOUSEBUTTONUP:
             case SDL_MOUSEBUTTONDOWN:
@@ -1474,6 +1474,11 @@ bool scg_app_process_events(scg_app_t *app) {
                 break;
             }
         }
+    }
+
+    if (scg_keyboard_is_key_triggered(app->keyboard, SCG_KEY_ESCAPE)) {
+        app->running = false;
+        return false;
     }
 
     // Calculate the delta time and elapsed time in seconds.
@@ -1501,7 +1506,7 @@ void scg_app_present(scg_app_t *app) {
                                      app->screen->frame_metrics);
     }
 
-    scg__keyboard_update(app->keyboard);
+    scg__keyboard_update_keystates(app->keyboard);
 
     if (app->audio != NULL) {
         scg__audio_update(app->audio);
@@ -1729,16 +1734,15 @@ static scg_keyboard_t *scg__keyboard_new(void) {
         return NULL;
     }
 
-    keyboard->current_key_states = SDL_GetKeyboardState(NULL);
-    memset(keyboard->previous_key_states, 0,
-           sizeof(uint8_t) * SDL_NUM_SCANCODES);
+    memset(keyboard->current_key_states, 0, sizeof(bool) * SDL_NUM_SCANCODES);
+    memset(keyboard->last_frame_key_states, 0, sizeof(bool) * SDL_NUM_SCANCODES);
 
     return keyboard;
 }
 
-static void scg__keyboard_update(scg_keyboard_t *keyboard) {
-    memcpy(keyboard->previous_key_states, keyboard->current_key_states,
-           sizeof(uint8_t) * SDL_NUM_SCANCODES);
+static void scg__keyboard_update_keystates(scg_keyboard_t *keyboard) {
+    memcpy(keyboard->last_frame_key_states, keyboard->current_key_states,
+           sizeof(bool) * SDL_NUM_SCANCODES);
 }
 
 static scg_mouse_t *scg__mouse_new(void) {

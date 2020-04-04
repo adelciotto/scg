@@ -54,6 +54,7 @@ Replace `{{example_name}}` with any of the following:
 * `metablobs`
 * `seabug`
 * `mouse`
+* `tween`
 
 By default all the examples are built with optimization flags. To build in debug mode, use the `DEBUG=1` flag.
 
@@ -89,10 +90,10 @@ Audio | Matrix | Metablobs
 ![audio](/screenshots/audio.bmp) | ![matrix](/screenshots/matrix.bmp) | ![metablobs](/screenshots/metablobs.bmp)
 [Source](examples/audio.c) | [Source](examples/matrix.c) | [Source](examples/metablobs.c)
 
-Seabug | Mouse
----    | ---
-![seabug](/screenshots/seabug.bmp) | ![mouse](/screenshots/mouse.bmp)
-[Source](examples/seabug.c) | [Source](examples/mouse.c)
+Seabug | Mouse | Tween
+---    | --- | ---
+![seabug](/screenshots/seabug.bmp) | ![mouse](/screenshots/mouse.bmp) | ![tween](/screenshots/tween.bmp) 
+[Source](examples/seabug.c) | [Source](examples/mouse.c) | [Source](examples/tween.c)
 
 
 ## Converting audio

@@ -41,6 +41,7 @@ extern "C" {
 #define float64_t double
 
 #define SCG_PI 3.1415926535f
+#define SCG_PI_2 SCG_PI * 2.0f
 
 #define SCG_FONT_SIZE 8
 
@@ -69,6 +70,14 @@ extern uint64_t scg_get_performance_counter(void);
 extern uint64_t scg_get_performance_frequency(void);
 extern float64_t scg_get_elapsed_time_secs(uint64_t end, uint64_t start);
 extern float64_t scg_get_elapsed_time_millisecs(uint64_t end, uint64_t start);
+
+typedef struct scg_vec2f_t {
+    float32_t x;
+    float32_t y;
+} scg_vec2f_t;
+
+#define scg_vec2f_zero() ((scg_vec2f_t){0.0f, 0.0f})
+#define scg_vec2f_new(X, Y) ((scg_vec2f_t){(X), (Y)})
 
 // This is for quick and dirty string formatting, and
 // is designed to work with some stack allocated buffer.
@@ -114,6 +123,7 @@ typedef union scg_pixel_t {
 #define SCG_COLOR_BLUE scg_pixel_new_rgb(0, 0, 255)
 #define SCG_COLOR_YELLOW scg_pixel_new_rgb(255, 255, 0)
 #define SCG_COLOR_MAGENTA scg_pixel_new_rgb(255, 0, 255)
+#define SCG_COLOR_BROWN scg_pixel_new_rgb(150, 75, 0)
 #define SCG_COLOR_95_GREEN scg_pixel_new_rgb(0, 128, 128)
 #define SCG_COLOR_ICE_BLUE scg_pixel_new_rgb(153, 255, 255)
 #define SCG_COLOR_SKY_BLUE scg_pixel_new_rgb(135, 206, 235)
@@ -223,6 +233,7 @@ typedef enum scg_key_code_t {
     SCG_KEY_X = SDL_SCANCODE_X,
     SCG_KEY_C = SDL_SCANCODE_C,
     SCG_KEY_Z = SDL_SCANCODE_Z,
+    SCG_KEY_P = SDL_SCANCODE_P,
     SCG_KEY_SPACE = SDL_SCANCODE_SPACE,
     SCG_KEY_ESCAPE = SDL_SCANCODE_ESCAPE
 } scg_key_code_t;
@@ -314,6 +325,54 @@ extern bool scg_app_process_events(scg_app_t *app);
 extern void scg_app_present(scg_app_t *app);
 extern void scg_app_close(scg_app_t *app);
 extern void scg_app_free(scg_app_t *app);
+
+typedef float32_t (*scg_tween_func_t)(float32_t time);
+
+extern float32_t scg_tween_linear(float32_t t);
+extern float32_t scg_tween_exponential_ease_in(float32_t t);
+extern float32_t scg_tween_exponential_ease_out(float32_t t);
+extern float32_t scg_tween_exponential_ease_in_out(float32_t t);
+extern float32_t scg_tween_elastic_ease_in(float32_t t);
+extern float32_t scg_tween_elastic_ease_out(float32_t t);
+extern float32_t scg_tween_elastic_ease_in_out(float32_t t);
+
+// TODO: Tweens need a way to be grouped and managed.
+// I think a tween group abstraction is needed, which
+// also has the option for the tweens to be chained, or
+// played one after another.
+
+typedef struct scg_tween_definition_t {
+    scg_vec2f_t *start_end_values;
+    float32_t duration;
+    int num_values;
+    bool loop;
+    bool yoyo;
+    scg_tween_func_t func;
+} scg_tween_definition_t;
+
+extern scg_tween_definition_t
+scg_tween_definition_new(scg_vec2f_t *start_end_values, int num_values,
+                         scg_tween_func_t func, float32_t duration, bool loop,
+                         bool yoyo);
+
+typedef struct scg_tween_t {
+    int id;
+    scg_tween_definition_t definition;
+
+    float32_t start_time;
+    bool playing;
+    bool paused;
+    bool yoyo_in_progress;
+    float32_t pause_time;
+} scg_tween_t;
+
+extern scg_tween_t scg_tween_new(scg_tween_definition_t tween_definition);
+extern void scg_tween_update(scg_tween_t *tween, float32_t *out,
+                             float32_t current_time);
+extern void scg_tween_start(scg_tween_t *tween, float32_t current_time);
+extern void scg_tween_stop(scg_tween_t *tween);
+extern void scg_tween_pause(scg_tween_t *tween, float32_t current_time);
+extern void scg_tween_resume(scg_tween_t *tween, float32_t current_time);
 
 #ifdef __cplusplus
 }
@@ -1459,10 +1518,12 @@ bool scg_app_process_events(scg_app_t *app) {
                 app->running = false;
                 return false;
             case SDL_KEYDOWN:
-                app->keyboard->current_key_states[event.key.keysym.scancode] = true;
+                app->keyboard->current_key_states[event.key.keysym.scancode] =
+                    true;
                 break;
             case SDL_KEYUP:
-                app->keyboard->current_key_states[event.key.keysym.scancode] = false;
+                app->keyboard->current_key_states[event.key.keysym.scancode] =
+                    false;
                 break;
             case SDL_MOUSEBUTTONUP:
             case SDL_MOUSEBUTTONDOWN:
@@ -1538,6 +1599,246 @@ void scg_app_free(scg_app_t *app) {
     scg_image_free(app->draw_target);
 
     SDL_Quit();
+}
+
+// References used for tween functions:
+// - http://robertpenner.com/easing/
+// - https://github.com/warrenm/AHEasing
+// - https://github.com/tweenjs/tween.js
+
+//
+// scg_tween_linear implementation
+//
+
+float32_t scg_tween_linear(float32_t t) {
+    return t;
+}
+
+//
+// scg_tween_exponential_ease_in implementation
+//
+
+float32_t scg_tween_exponential_ease_in(float32_t t) {
+    return (t == 0.0f) ? t : powf(2.0f, 10.0f * (t - 1.0f));
+}
+
+//
+// scg_tween_exponential_ease_out implementation
+//
+
+float32_t scg_tween_exponential_ease_out(float32_t t) {
+    return (t == 1.0f) ? t : 1.0f - powf(2.0f, -10.0f * t);
+}
+
+//
+// scg_tween_exponential_ease_in_out implementation
+//
+
+float32_t scg_tween_exponential_ease_in_out(float32_t t) {
+    if (t == 0.0f || t == 1.0f) {
+        return t;
+    }
+
+    if (t < 0.5f) {
+        return 0.5f * powf(2.0f, (20.0f * t) - 10.0f);
+    }
+
+    return -0.5f * powf(2.0f, (-20.0f * t) + 10.0f) + 1.0f;
+}
+
+//
+// scg_tween_elastic_ease_in implementation
+//
+
+float32_t scg_tween_elastic_ease_in(float32_t t) {
+    if (t == 0.0f) {
+        return 0.0f;
+    }
+
+    if (t == 1.0f) {
+        return 1.0f;
+    }
+
+    return -powf(2.0f, 10.0f * (t - 1.0f)) * sinf((t - 1.1f) * 5.0f * SCG_PI);
+}
+
+//
+// scg_tween_elastic_ease_out implementation
+//
+
+float32_t scg_tween_elastic_ease_out(float32_t t) {
+    if (t == 0.0f) {
+        return 0.0f;
+    }
+
+    if (t == 1.0f) {
+        return 1.0f;
+    }
+
+    return powf(2.0f, -10.0f * t) * sinf((t - 0.1f) * 5.0f * SCG_PI) + 1.0f;
+}
+
+//
+// scg_tween_elastic_ease_in_out implementation
+//
+
+float32_t scg_tween_elastic_ease_in_out(float32_t t) {
+    if (t == 0.0f) {
+        return 0.0f;
+    }
+
+    if (t == 1.0f) {
+        return 1.0f;
+    }
+
+    t *= 2.0f;
+
+    if (t < 1.0f) {
+        return -0.5f * powf(2.0f, 10.0f * (t - 1.0f)) *
+               sinf((t - 1.1f) * 5.0f * SCG_PI);
+    }
+
+    return 0.5f * powf(2.0f, -10.0f * (t - 1.0f)) *
+               sinf((t - 1.1f) * 5.0f * SCG_PI) +
+           1.0f;
+}
+
+//
+// scg_tween_definition_new implementation
+//
+
+scg_tween_definition_t scg_tween_definition_new(scg_vec2f_t *start_end_values,
+                                                int num_values,
+                                                scg_tween_func_t func,
+                                                float32_t duration, bool loop,
+                                                bool yoyo) {
+    return (scg_tween_definition_t){.start_end_values = start_end_values,
+                                    .num_values = num_values,
+                                    .func = func,
+                                    .duration = duration,
+                                    .loop = loop,
+                                    .yoyo = yoyo};
+}
+
+//
+// scg_tween_new implementation
+//
+
+scg_tween_t scg_tween_new(scg_tween_definition_t tween_definition) {
+    return (scg_tween_t){.definition = tween_definition,
+                         .start_time = 0.0f,
+                         .playing = false,
+                         .paused = false,
+                         .pause_time = 0.0f,
+                         .yoyo_in_progress = false};
+}
+
+//
+// scg_tween_update implementation
+//
+
+void scg_tween_update(scg_tween_t *tween, float32_t *out,
+                      float32_t current_time) {
+    if (!tween->playing) {
+        return;
+    }
+
+    scg_tween_definition_t definition = tween->definition;
+    float32_t time;
+    if (tween->paused) {
+        time = (tween->pause_time - tween->start_time) / definition.duration;
+    } else {
+        time = (current_time - tween->start_time) / definition.duration;
+    }
+
+    if (definition.duration == 0.0f || time > 1.0f) {
+        time = 1.0f;
+    }
+
+    for (int i = 0; i < definition.num_values; i++) {
+        float32_t start = definition.start_end_values[i].x;
+        float32_t end = definition.start_end_values[i].y;
+
+        out[i] = start + definition.func(time) * (end - start);
+    }
+
+    if (time == 1.0f) {
+        if (definition.yoyo) {
+            for (int i = 0; i < definition.num_values; i++) {
+                float32_t start = definition.start_end_values[i].x;
+                float32_t end = definition.start_end_values[i].y;
+                tween->definition.start_end_values[i] =
+                    scg_vec2f_new(end, start);
+            }
+
+            tween->yoyo_in_progress = !tween->yoyo_in_progress;
+        }
+
+        if (definition.loop || tween->yoyo_in_progress) {
+            tween->start_time = current_time;
+        } else {
+            tween->playing = false;
+        }
+    }
+}
+
+//
+// scg_tween_start implementation
+//
+
+void scg_tween_start(scg_tween_t *tween, float32_t current_time) {
+    if (tween->playing) {
+        return;
+    }
+
+    tween->playing = true;
+    tween->start_time = current_time;
+    tween->paused = false;
+    tween->pause_time = 0.0f;
+    tween->yoyo_in_progress = false;
+}
+
+//
+// scg_tween_stop implementation
+//
+
+void scg_tween_stop(scg_tween_t *tween) {
+    if (!tween->playing) {
+        return;
+    }
+
+    tween->playing = false;
+    tween->start_time = 0.0f;
+    tween->paused = false;
+    tween->pause_time = 0.0f;
+    tween->yoyo_in_progress = false;
+}
+
+//
+// scg_tween_pause implementation
+//
+
+void scg_tween_pause(scg_tween_t *tween, float32_t current_time) {
+    if (!tween->playing || tween->paused) {
+        return;
+    }
+
+    tween->paused = true;
+    tween->pause_time = current_time;
+}
+
+//
+// scg_tween_resume implementation
+//
+
+void scg_tween_resume(scg_tween_t *tween, float32_t current_time) {
+    if (!tween->playing || !tween->paused) {
+        return;
+    }
+
+    tween->paused = false;
+    tween->start_time += current_time - tween->pause_time;
+    tween->pause_time = 0.0f;
 }
 
 static int scg__get_monitor_refresh_rate(SDL_DisplayMode display_mode) {
@@ -1735,7 +2036,8 @@ static scg_keyboard_t *scg__keyboard_new(void) {
     }
 
     memset(keyboard->current_key_states, 0, sizeof(bool) * SDL_NUM_SCANCODES);
-    memset(keyboard->last_frame_key_states, 0, sizeof(bool) * SDL_NUM_SCANCODES);
+    memset(keyboard->last_frame_key_states, 0,
+           sizeof(bool) * SDL_NUM_SCANCODES);
 
     return keyboard;
 }

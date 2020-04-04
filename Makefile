@@ -23,7 +23,8 @@ EXAMPLES := \
 	matrix \
 	metablobs \
 	seabug \
-	mouse
+	mouse \
+	tween
 
 .PHONY: default
 default: $(EXAMPLES)

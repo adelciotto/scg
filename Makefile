@@ -1,4 +1,4 @@
-CFLAGS := -Wall -Werror -Wextra -std=c99 -pedantic
+CFLAGS := -Wall -Werror -Wextra -std=c++11 -pedantic
 LDFLAGS := -lm $(shell pkg-config --libs sdl2)
 INCLUDES := $(shell pkg-config --cflags sdl2)
 
@@ -29,12 +29,12 @@ EXAMPLES := \
 .PHONY: default
 default: $(EXAMPLES)
 
-$(EXAMPLES): %:examples/%.c scg.h
-	$(CC) $< -o $@ $(CFLAGS) $(LDFLAGS) $(INCLUDES)
+$(EXAMPLES): %:examples/%.cpp scg.h
+	$(CXX) $< -o $@ $(CFLAGS) $(LDFLAGS) $(INCLUDES)
 
 .PHONY: format
 format:
-	clang-format --verbose -i -style=file examples/*.c scg.h
+	clang-format --verbose -i -style=file scg.h
 
 .PHONY: clean
 clean:

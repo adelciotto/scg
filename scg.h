@@ -431,7 +431,7 @@ static scg_mouse_t *scg__mouse_new(void);
 static void scg__mouse_update(scg_mouse_t *mouse, int w, int h, int win_w,
                               int win_h);
 
-static scg_audio_t *scg__audio_new(int target_fps);
+static scg_audio_t *scg__audio_new();
 static void scg__audio_update(scg_audio_t *audio);
 static void scg__audio_free(scg_audio_t *audio);
 
@@ -1445,7 +1445,7 @@ void scg_app_init(scg_app_t *app, scg_config_t config) {
 
     scg_audio_t *audio = NULL;
     if (config.audio.enabled) {
-        audio = scg__audio_new(screen->target_fps);
+        audio = scg__audio_new();
         if (audio == NULL) {
             scg_log_error("Failed to create sound device");
 
@@ -2070,17 +2070,18 @@ static void scg__mouse_update(scg_mouse_t *mouse, int w, int h, int win_w,
     mouse->button_state = button_state;
 }
 
-static scg_audio_t *scg__audio_new(int target_fps) {
+static scg_audio_t *scg__audio_new() {
     SDL_AudioSpec desired, obtained;
 
+    int samples_per_sec = 48000;
     int desired_num_channels = 2;
     size_t bytes_per_sample = sizeof(int16_t) * desired_num_channels;
 
     memset(&desired, 0, sizeof(desired));
-    desired.freq = 48000;
+    desired.freq = samples_per_sec;
     desired.format = AUDIO_S16LSB;
     desired.channels = desired_num_channels;
-    desired.samples = desired.freq * bytes_per_sample / target_fps;
+    desired.samples = 2048;
     desired.callback = NULL;
 
     SDL_AudioDeviceID device_id = SDL_OpenAudioDevice(
@@ -2101,11 +2102,9 @@ static scg_audio_t *scg__audio_new(int target_fps) {
     int obtained_frequency = obtained.freq;
     int latency_sample_count = obtained_frequency / 15;
     uint32_t buffer_size = latency_sample_count * bytes_per_sample;
-
-    uint8_t *buffer = calloc(latency_sample_count, bytes_per_sample);
+    uint8_t *buffer = malloc(buffer_size);
     if (buffer == NULL) {
-        scg_log_errorf("Failed to allocate memory for sound buffer. bytes=%zu",
-                       latency_sample_count * bytes_per_sample);
+        scg_log_errorf("Failed to allocate memory for sound buffer. bytes=%u", buffer_size);
 
         SDL_CloseAudioDevice(device_id);
         return NULL;

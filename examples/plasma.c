@@ -53,7 +53,7 @@ static void draw(scg_image_t *draw_target, scg_image_t *plasma_buffer,
     scg_image_draw_image_rotate(draw_target, plasma_buffer, x, y, elapsed_time);
 }
 
-int main(void) {
+int main(int arcg, char *argv[]) {
     scg_config_t config = scg_config_new_default();
     config.video.title = "SCG Example: Plasma";
 

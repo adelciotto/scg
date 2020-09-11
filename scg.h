@@ -1874,9 +1874,9 @@ static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
 
     // Setup the SDL window.
     {
-        sdl_window = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED,
-                                      SDL_WINDOWPOS_CENTERED, window_w,
-                                      window_h * scale, SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI);
+        sdl_window = SDL_CreateWindow(
+            title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_w,
+            window_h * scale, SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
         if (sdl_window == NULL) {
             scg_log_errorf("Failed to create SDL Window. %s", SDL_GetError());
 
@@ -2104,7 +2104,8 @@ static scg_audio_t *scg__audio_new() {
     uint32_t buffer_size = latency_sample_count * bytes_per_sample;
     uint8_t *buffer = malloc(buffer_size);
     if (buffer == NULL) {
-        scg_log_errorf("Failed to allocate memory for sound buffer. bytes=%u", buffer_size);
+        scg_log_errorf("Failed to allocate memory for sound buffer. bytes=%u",
+                       buffer_size);
 
         SDL_CloseAudioDevice(device_id);
         return NULL;

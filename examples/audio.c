@@ -25,7 +25,7 @@ static void draw(scg_image_t *draw_target, float32_t music_progress) {
                         progress_bar_color);
 }
 
-int main(void) {
+int main(int arcg, char *argv[]) {
     scg_config_t config = scg_config_new_default();
     config.video.title = "SCG Example: Audio";
     config.audio.enabled = true;

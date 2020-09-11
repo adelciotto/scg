@@ -14,7 +14,7 @@ static void draw(scg_image_t *draw_target, scg_image_t *image,
                                       2.0f);
 }
 
-int main(void) {
+int main(int arcg, char *argv[]) {
     scg_config_t config = scg_config_new_default();
     config.video.title = "SCG Example: Transform";
 

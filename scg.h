@@ -1876,7 +1876,7 @@ static scg__screen_t *scg__screen_new(scg_image_t *draw_target,
     {
         sdl_window = SDL_CreateWindow(
             title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, window_w,
-            window_h * scale, SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
+            window_h, SDL_WINDOW_SHOWN | SDL_WINDOW_ALLOW_HIGHDPI);
         if (sdl_window == NULL) {
             scg_log_errorf("Failed to create SDL Window. %s", SDL_GetError());
 
